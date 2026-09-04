@@ -1,0 +1,3 @@
+{
+  "extends": "@camaleon/config/tsconfig.base.json"
+}

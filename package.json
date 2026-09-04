@@ -1,0 +1,35 @@
+{
+  "name": "camaleon",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @camaleon/db db:push",
+    "db:studio": "turbo -F @camaleon/db db:studio",
+    "db:generate": "turbo -F @camaleon/db db:generate",
+    "db:migrate": "turbo -F @camaleon/db db:migrate",
+    "db:local": "turbo -F @camaleon/db db:local",
+    "check": "biome check --write ."
+  },
+  "dependencies": {
+    "@camaleon/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "@camaleon/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "turbo": "2.10.11",
+    "typescript": "^6.0.3"
+  },
+  "packageManager": "pnpm@10.34.5"
+}
