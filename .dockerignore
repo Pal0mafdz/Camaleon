@@ -1,0 +1,15 @@
+# Contexto de build para packages/db/Dockerfile — el resto del monorepo
+# (apps/, node_modules instalados en el host, etc.) no hace falta para
+# sembrar la base de datos, así que no vale la pena mandarlo al daemon.
+node_modules
+**/node_modules
+.git
+.turbo
+**/dist
+**/.next
+apps/web
+apps/server
+graphify-out
+packages/db/local.db
+packages/db/seed.db
+packages/db/*.db
