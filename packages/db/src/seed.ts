@@ -8,18 +8,15 @@
  * respuestas interesantes: hay fugas de dinero detectables y margen real.
  */
 import { db } from "./index";
-import { AGE_BANDS, BENCHMARK_CATEGORIES, INCOME_BANDS } from "./peer-bands";
+import {
+  AGE_BANDS,
+  AGE_MULT,
+  BENCHMARK_CATEGORIES,
+  CATEGORY_PCT,
+  INCOME_BANDS,
+} from "./peer-bands";
 import { goals, peerBenchmarks, products, transactions, users } from "./schema";
-
-type Seed = {
-  merchant: string;
-  category: string;
-  amount: number;
-  method?: string;
-  recurring?: boolean;
-  /** Día del mes en el que cae. */
-  day: number;
-};
+import { buildMonths, makeRandom, type Seed } from "./synthetic/rng";
 
 /** Cargos que se repiten idénticos cada mes. */
 const KARLA_FIJOS: Seed[] = [
@@ -126,78 +123,7 @@ const ROBERTO_VARIABLES: {
 ];
 
 /** PRNG determinista: el demo debe verse igual cada vez que se siembra. */
-function makeRandom(seed: number) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1_664_525 + 1_013_904_223) >>> 0;
-    return s / 0x1_0000_0000;
-  };
-}
-
 const rand = makeRandom(20_260_904);
-
-function pick(min: number, max: number) {
-  return Math.round((min + rand() * (max - min)) * 100) / 100;
-}
-
-type Row = typeof transactions.$inferInsert;
-
-function buildMonths(
-  userId: string,
-  fijos: Seed[],
-  variables: {
-    merchant: string;
-    category: string;
-    min: number;
-    max: number;
-    perMonth: number;
-    method?: string;
-  }[],
-  months: number,
-): Row[] {
-  const rows: Row[] = [];
-  const today = new Date();
-
-  for (let back = months - 1; back >= 0; back--) {
-    const base = new Date(today.getFullYear(), today.getMonth() - back, 1);
-    const daysInMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
-
-    for (const f of fijos) {
-      rows.push({
-        userId,
-        date: new Date(base.getFullYear(), base.getMonth(), Math.min(f.day, daysInMonth), 9, 30),
-        merchant: f.merchant,
-        category: f.category,
-        amount: f.amount,
-        method: f.method ?? "debito",
-        recurring: f.recurring ?? false,
-      });
-    }
-
-    for (const v of variables) {
-      for (let i = 0; i < v.perMonth; i++) {
-        const day = 1 + Math.floor(rand() * daysInMonth);
-        rows.push({
-          userId,
-          date: new Date(
-            base.getFullYear(),
-            base.getMonth(),
-            day,
-            8 + Math.floor(rand() * 13),
-            Math.floor(rand() * 60),
-          ),
-          merchant: v.merchant,
-          category: v.category,
-          amount: -pick(v.min, v.max),
-          method: v.method ?? "debito",
-          recurring: false,
-        });
-      }
-    }
-  }
-
-  return rows.sort((a, b) => (a.date as Date).getTime() - (b.date as Date).getTime());
-}
 
 const PRODUCTS: (typeof products.$inferInsert)[] = [
   {
@@ -299,26 +225,6 @@ const DEMO_PASSWORD = "banorte123";
  * gente inventada.
  */
 
-/** % del ingreso mensual que en promedio se va a cada categoría. */
-const CATEGORY_PCT: Record<(typeof BENCHMARK_CATEGORIES)[number], number> = {
-  vivienda: 0.28,
-  super: 0.1,
-  transporte: 0.07,
-  comida: 0.09,
-  servicios: 0.05,
-  suscripciones: 0.02,
-  compras: 0.06,
-  salud: 0.04,
-  entretenimiento: 0.03,
-};
-
-/** Ajustes por edad sobre el % base. Categoría ausente = sin ajuste (1x). */
-const AGE_MULT: Partial<Record<(typeof BENCHMARK_CATEGORIES)[number], Record<string, number>>> = {
-  entretenimiento: { "18-25": 1.6, "26-35": 1.2, "36-50": 0.9, "51-65": 0.6, "65+": 0.4 },
-  salud: { "18-25": 0.5, "26-35": 0.7, "36-50": 1.0, "51-65": 1.4, "65+": 1.8 },
-  vivienda: { "18-25": 0.8, "26-35": 1.1, "36-50": 1.1, "51-65": 0.9, "65+": 0.7 },
-};
-
 const PROFILES_PER_BAND = 400;
 
 function percentile(sorted: number[], p: number): number {
@@ -409,8 +315,8 @@ async function main() {
   console.log("Sembrando productos Banorte…");
   await db.insert(products).values(PRODUCTS);
 
-  const karlaRows = buildMonths("karla", KARLA_FIJOS, KARLA_VARIABLES, 6);
-  const robertoRows = buildMonths("roberto", ROBERTO_FIJOS, ROBERTO_VARIABLES, 6);
+  const karlaRows = buildMonths(rand, "karla", KARLA_FIJOS, KARLA_VARIABLES, 6);
+  const robertoRows = buildMonths(rand, "roberto", ROBERTO_FIJOS, ROBERTO_VARIABLES, 6);
 
   console.log(`Sembrando ${karlaRows.length + robertoRows.length} movimientos…`);
   for (let i = 0; i < karlaRows.length; i += 100) {

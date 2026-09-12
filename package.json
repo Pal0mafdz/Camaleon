@@ -17,6 +17,9 @@
     "db:generate": "turbo -F @camaleon/db db:generate",
     "db:migrate": "turbo -F @camaleon/db db:migrate",
     "db:local": "turbo -F @camaleon/db db:local",
+    "db:docker:up": "docker compose up -d db",
+    "db:docker:down": "docker compose down db",
+    "db:docker:reset": "docker compose down -v db && docker compose up -d --build db",
     "check": "biome check --write ."
   },
   "dependencies": {
