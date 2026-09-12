@@ -1,6 +1,9 @@
 import type { AgentStatus, McpActivity, Widget } from "@camaleon/shared";
 import { create } from "zustand";
 
+/** Las cuatro pestañas de la app. `inicio` y `asesor` comparten el lienzo. */
+export type Tab = "inicio" | "asesor" | "metas" | "historial";
+
 type CanvasState = {
   widgets: Widget[];
   mcp: McpActivity[];
@@ -12,6 +15,12 @@ type CanvasState = {
   turn: number;
   /** En qué turno se pintó por última vez cada widget. */
   widgetTurn: Record<string, number>;
+  /** Pestaña visible. Vive aquí para que cualquier pantalla pueda navegar. */
+  tab: Tab;
+  /** Perfil demo activo. Lo consumen el lienzo y las pantallas de lista. */
+  userId: string;
+  /** Charla abierta en el servidor. `null` = la próxima pregunta abre una nueva. */
+  conversationId: number | null;
 
   beginTurn: () => void;
   endTurn: () => void;
@@ -22,6 +31,11 @@ type CanvasState = {
   setLocal: (widgetId: string, patch: Record<string, unknown>) => void;
   clearCanvas: () => void;
   togglePanel: () => void;
+  setTab: (tab: Tab) => void;
+  setUserId: (userId: string) => void;
+  setConversationId: (id: number | null) => void;
+  /** Repinta el lienzo completo desde una fuente guardada (plan o historial). */
+  paintWidgets: (widgets: Widget[]) => void;
 };
 
 export const useCanvas = create<CanvasState>((set) => ({
@@ -32,6 +46,9 @@ export const useCanvas = create<CanvasState>((set) => ({
   panelOpen: false,
   turn: 0,
   widgetTurn: {},
+  tab: "inicio",
+  userId: "karla",
+  conversationId: null,
 
   // La actividad MCP es de la pregunta en curso, no del historial.
   beginTurn: () => set((s) => ({ turn: s.turn + 1, mcp: [] })),
@@ -88,7 +105,32 @@ export const useCanvas = create<CanvasState>((set) => ({
       locals: { ...s.locals, [widgetId]: { ...s.locals[widgetId], ...patch } },
     })),
 
-  clearCanvas: () => set({ widgets: [], mcp: [], status: null, locals: {}, widgetTurn: {} }),
+  // Empezar de cero también cierra la charla: la próxima pregunta abre una nueva.
+  clearCanvas: () =>
+    set({
+      widgets: [],
+      mcp: [],
+      status: null,
+      locals: {},
+      widgetTurn: {},
+      conversationId: null,
+    }),
 
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+
+  setTab: (tab) => set({ tab }),
+
+  setUserId: (userId) => set({ userId }),
+
+  setConversationId: (conversationId) => set({ conversationId }),
+
+  // Un lienzo guardado llega entero, no widget por widget: se sella como un
+  // turno propio para que el `endTurn` de la siguiente pregunta lo respete.
+  paintWidgets: (widgets) =>
+    set((s) => {
+      const turn = s.turn + 1;
+      const widgetTurn: Record<string, number> = {};
+      for (const w of widgets) widgetTurn[w.id] = turn;
+      return { widgets, widgetTurn, turn, locals: {}, mcp: [], status: null };
+    }),
 }));

@@ -81,7 +81,33 @@ export const products = sqliteTable("products", {
   bullets: text().notNull(),
 });
 
+/** Una charla con el asesor: agrupa turnos y el lienzo resultante. */
+export const conversations = sqliteTable("conversations", {
+  id: integer().primaryKey({ autoIncrement: true }),
+  userId: text()
+    .notNull()
+    .references(() => users.id),
+  /** Primer pregunta del usuario; sirve de título en el historial. */
+  title: text().notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).default(now).notNull(),
+  updatedAt: integer({ mode: "timestamp_ms" }).default(now).notNull(),
+});
+
+/** Cada turno: la pregunta y los widgets que pintó el agente. */
+export const messages = sqliteTable("messages", {
+  id: integer().primaryKey({ autoIncrement: true }),
+  conversationId: integer()
+    .notNull()
+    .references(() => conversations.id),
+  question: text().notNull(),
+  /** JSON serializado: Widget[] pintados en este turno. */
+  widgets: text().notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).default(now).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
+export type Conversation = typeof conversations.$inferSelect;
+export type Message = typeof messages.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Goal = typeof goals.$inferSelect;
 export type Plan = typeof plans.$inferSelect;

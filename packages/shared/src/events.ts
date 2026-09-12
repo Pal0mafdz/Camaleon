@@ -25,8 +25,12 @@ export type AgentStatus = {
   label: string;
 };
 
+/** Efímero: id de la conversación donde quedó guardado este turno. */
+export type ConversationRef = { conversationId: number };
+
 export type CamaleonDataParts = {
   widget: WidgetPart;
   mcp: McpActivity;
   status: AgentStatus;
+  conversation: ConversationRef;
 };

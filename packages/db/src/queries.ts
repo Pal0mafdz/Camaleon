@@ -4,7 +4,7 @@
  */
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "./index";
-import { goals, products, transactions, users } from "./schema";
+import { conversations, goals, messages, plans, products, transactions, users } from "./schema";
 
 export type SpendingRow = { category: string; total: number; count: number };
 export type MerchantRow = { merchant: string; total: number; count: number };
@@ -180,6 +180,103 @@ export async function createGoal(input: {
     })
     .returning();
   return row;
+}
+
+export type GoalStatus = "activa" | "pausada" | "completada";
+
+export async function updateGoal(
+  id: number,
+  userId: string,
+  patch: { status?: GoalStatus; currentAmount?: number; monthlyAmount?: number },
+) {
+  const [row] = await db
+    .update(goals)
+    .set(patch)
+    .where(and(eq(goals.id, id), eq(goals.userId, userId)))
+    .returning();
+  return row ?? null;
+}
+
+export async function listPlans(userId: string) {
+  const rows = await db
+    .select()
+    .from(plans)
+    .where(eq(plans.userId, userId))
+    .orderBy(desc(plans.createdAt));
+  return rows.map((p) => ({ ...p, widgets: JSON.parse(p.widgets) as unknown[] }));
+}
+
+export async function createPlan(input: {
+  userId: string;
+  title: string;
+  question: string;
+  widgets: unknown[];
+}) {
+  const [row] = await db
+    .insert(plans)
+    .values({
+      userId: input.userId,
+      title: input.title,
+      question: input.question,
+      widgets: JSON.stringify(input.widgets),
+    })
+    .returning();
+  if (!row) throw new Error("No se pudo guardar el plan");
+  return row;
+}
+
+export async function listConversations(userId: string) {
+  return db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.userId, userId))
+    .orderBy(desc(conversations.updatedAt));
+}
+
+export async function getConversation(id: number, userId: string) {
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
+  if (!conv) return null;
+  const turns = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, id))
+    .orderBy(messages.createdAt);
+  return {
+    ...conv,
+    messages: turns.map((m) => ({ ...m, widgets: JSON.parse(m.widgets) as unknown[] })),
+  };
+}
+
+/** Guarda un turno; crea la conversación si no viene id. Devuelve el id de la conversación. */
+export async function saveTurn(input: {
+  userId: string;
+  conversationId?: number | null;
+  question: string;
+  widgets: unknown[];
+}) {
+  let conversationId = input.conversationId ?? null;
+  if (conversationId === null) {
+    const [conv] = await db
+      .insert(conversations)
+      .values({ userId: input.userId, title: input.question.slice(0, 80) })
+      .returning();
+    if (!conv) throw new Error("No se pudo crear la conversación");
+    conversationId = conv.id;
+  } else {
+    await db
+      .update(conversations)
+      .set({ updatedAt: new Date() })
+      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, input.userId)));
+  }
+  await db.insert(messages).values({
+    conversationId,
+    question: input.question,
+    widgets: JSON.stringify(input.widgets),
+  });
+  return conversationId;
 }
 
 function monthsAgo(n: number) {

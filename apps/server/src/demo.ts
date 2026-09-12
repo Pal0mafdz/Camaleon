@@ -156,7 +156,7 @@ export async function buildScript(name: DemoScriptName, userId: string): Promise
 // La diferencia con un chat: aquí nadie escribe primero. Al abrir, el agente
 // ya revisó tu cuenta y pinta lo que encontró.
 
-async function homeScript(userId: string): Promise<DemoScript> {
+export async function homeScript(userId: string): Promise<DemoScript> {
   const bal = await getBalance(userId);
   if (!bal) throw new Error(`Usuario desconocido: ${userId}`);
 
@@ -373,10 +373,10 @@ async function homeScript(userId: string): Promise<DemoScript> {
         props: {
           label: "¿Qué quieres lograr?",
           options: [
-            "¿Me alcanza para un Mazda 3?",
-            "Quiero un viaje a Japón",
-            "¿Puedo comprar casa?",
-            "Tengo $50,000 parados",
+            "¿A dónde se me va el dinero?",
+            "¿Me conviene pagar tarjeta o invertir?",
+            "Quiero ahorrar para una meta",
+            "¿Me alcanza un crédito?",
           ],
         },
       },

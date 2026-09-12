@@ -62,6 +62,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             height: "100dvb",
             overflow: "hidden",
             bgcolor: "background.default",
+            // Todo lo anclado al pulgar sube lo que mide la barra de pestañas.
+            "--dock-offset": "var(--tab-bar-h)",
           }}
         >
           {children}
@@ -98,6 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             overflow: "hidden",
             bgcolor: "background.default",
             boxShadow: `${TOKENS.glossLight}, ${TOKENS.elev3}`,
+            "--dock-offset": "var(--tab-bar-h)",
           }}
         >
           {children}

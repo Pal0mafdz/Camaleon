@@ -120,6 +120,11 @@
   /* Aire que el lienzo reserva bajo el último widget para que nunca quede
      atrapado detrás de la command bar flotante. */
   --dock-clearance: 108px;
+  /* Alto de la barra de pestañas, sin contar la safe area de abajo. */
+  --tab-bar-h: 60px;
+  /* Cuánto sube todo lo anclado al pulgar (command bar, sugerencias, velo).
+     El shell lo pone en `--tab-bar-h` cuando la barra de pestañas existe. */
+  --dock-offset: 0px;
   /* Alto del header flotante: 44px de objetivo táctil + 12px arriba y abajo. */
   --header-h: calc(var(--safe-top) + 68px);
   --gutter: 16px;

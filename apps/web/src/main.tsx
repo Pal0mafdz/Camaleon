@@ -1,9 +1,9 @@
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 import ReactDOM from "react-dom/client";
+import { AppRoot } from "./app/app-root";
 import { AppShell } from "./app/app-shell";
 import { theme } from "./app/theme";
-import { CanvasScreen } from "./canvas/canvas-screen";
 import "./index.css";
 
 const rootElement = document.getElementById("app");
@@ -13,7 +13,7 @@ ReactDOM.createRoot(rootElement).render(
   <ThemeProvider theme={theme}>
     <CssBaseline />
     <AppShell>
-      <CanvasScreen />
+      <AppRoot />
     </AppShell>
   </ThemeProvider>,
 );

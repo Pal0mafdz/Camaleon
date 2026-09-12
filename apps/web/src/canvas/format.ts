@@ -55,6 +55,19 @@ export function formatMoney(value: number, cents = false): string {
   return (cents ? mxnCents : mxn).format(value);
 }
 
+const dateTime = new Intl.DateTimeFormat("es-MX", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** Fecha corta para listas (historial, planes). Un ISO roto no tumba la lista. */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : dateTime.format(d);
+}
+
 export function formatUnit(value: number, unit: "MXN" | "pct" | "months" | "count"): string {
   switch (unit) {
     case "pct":
