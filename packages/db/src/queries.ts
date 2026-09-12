@@ -65,6 +65,23 @@ export async function deleteSession(token: string) {
   await db.delete(sessions).where(eq(sessions.token, token));
 }
 
+/** Cuántos movimientos tiene un usuario — usado por el backfill para saber a quién le falta poblarse. */
+export async function countTransactions(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(transactions)
+    .where(eq(transactions.userId, userId));
+  return row?.count ?? 0;
+}
+
+export async function updateUserProfile(
+  userId: string,
+  patch: { age: number; occupation: string; monthlyIncome: number; balance: number },
+) {
+  const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
+  return row ?? null;
+}
+
 export async function updateUserPreferences(
   userId: string,
   patch: {
@@ -102,6 +119,13 @@ export async function getBalance(userId: string) {
     monthlySpend: gastoMensual,
     monthlySurplus: (ingresoMensual || user.monthlyIncome) - gastoMensual,
   };
+}
+
+/** Inserta movimientos en lotes de 100 (mismo límite que usa `seed.ts`). */
+export async function insertTransactions(rows: (typeof transactions.$inferInsert)[]) {
+  for (let i = 0; i < rows.length; i += 100) {
+    await db.insert(transactions).values(rows.slice(i, i + 100));
+  }
 }
 
 export async function getTransactions(userId: string, limit = 40, category?: string) {

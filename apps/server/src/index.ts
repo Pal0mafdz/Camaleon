@@ -8,6 +8,7 @@ import {
   getConversation,
   getUser,
   getUserByEmail,
+  insertTransactions,
   listConversations,
   listGoals,
   listPlans,
@@ -15,6 +16,8 @@ import {
   updateGoal,
   updateUserPreferences,
 } from "@camaleon/db/queries";
+import { backfillSyntheticUsers } from "@camaleon/db/synthetic/backfill";
+import { generateSyntheticProfile } from "@camaleon/db/synthetic/profile";
 import { env } from "@camaleon/env/server";
 import { createBanorteServer } from "@camaleon/mcp-banorte";
 import { createResearchServer } from "@camaleon/mcp-research";
@@ -285,16 +288,23 @@ app.post("/auth/signup", async (c) => {
   }
 
   const passwordHash = await Bun.password.hash(password);
+  const userId = crypto.randomUUID();
+  // Perfil sintético (edad, ocupación, ingreso, saldo, ~6 meses de
+  // movimientos, meta inicial) para que el asesor tenga con qué trabajar
+  // desde el primer login, sin que nadie tenga que capturar datos a mano.
+  const profile = generateSyntheticProfile(userId);
   const user = await createUser({
-    id: crypto.randomUUID(),
+    id: userId,
     name,
     email,
     passwordHash,
-    age: 0,
-    occupation: "",
-    monthlyIncome: 0,
-    balance: 0,
+    age: profile.age,
+    occupation: profile.occupation,
+    monthlyIncome: profile.monthlyIncome,
+    balance: profile.balance,
   });
+  await insertTransactions(profile.transactions);
+  if (profile.goal) await createGoal({ userId: user.id, ...profile.goal });
 
   const token = await issueSession(user.id);
   return c.json({ token, user: toPublicUser(user) }, 201);
@@ -426,6 +436,12 @@ app.post("/execute", async (c) => {
 });
 
 app.get("/", (c) => c.text("OK"));
+
+// Puebla con datos sintéticos a cualquier cuenta preexistente sin movimientos
+// (creada por signup antes de que este llenado automático existiera). No se
+// espera ni tumba el arranque si falla — Karla/Roberto no se tocan porque ya
+// tienen datos, y es barato/idempotente si no hay nada que hacer.
+backfillSyntheticUsers().catch((err) => console.error("[backfill]", err));
 
 // idleTimeout: el agente encadena varias tools MCP antes de pintar; el default
 // de Bun (10s) cortaría el stream a media conversación.
