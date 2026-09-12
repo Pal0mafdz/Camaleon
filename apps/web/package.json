@@ -20,10 +20,12 @@
     "@mui/material": "^9.3.1",
     "ai": "catalog:",
     "canvas-confetti": "^1.9.3",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.21.0",
     "motion": "^12.43.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-leaflet": "^5.0.0",
     "vite-plugin-pwa": "^1.3.0",
     "zod": "catalog:",
     "zustand": "^5.0.15"
@@ -31,6 +33,7 @@
   "devDependencies": {
     "@camaleon/config": "workspace:*",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
