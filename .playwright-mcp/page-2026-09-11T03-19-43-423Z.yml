@@ -1,0 +1,30 @@
+- main [ref=f3e3]:
+  - generic [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - 'button "Perfil actual: Karla. Cambiar de perfil" [ref=f3e6] [cursor=pointer]':
+        - heading "Karla" [level=6] [ref=f3e7]
+      - button "Actividad MCP, 1 herramientas" [ref=f3e123] [cursor=pointer]:
+        - generic [ref=f3e12]: MCP · 1
+    - generic [ref=f3e124]:
+      - generic [ref=f3e125]: Paso 1 de 3
+      - heading "¿Cuánto al mes te acomoda?" [level=4] [ref=f3e130]
+      - paragraph [ref=f3e131]: Con esto filtro qué autos sí van contigo.
+      - generic [ref=f3e132]:
+        - button "Hasta $4,500 Dentro de tu superávit actual Cabe hoy" [ref=f3e133] [cursor=pointer]:
+          - paragraph [ref=f3e135]: Hasta $4,500
+          - paragraph [ref=f3e136]: Dentro de tu superávit actual
+          - generic [ref=f3e137]: Cabe hoy
+        - button "Hasta $8,000 Tu superávit $5,286 + recorte de delivery $3,199 Cabe si recortas delivery" [pressed] [ref=f3e139] [cursor=pointer]:
+          - paragraph [ref=f3e141]: Hasta $8,000
+          - paragraph [ref=f3e145]: Tu superávit $5,286 + recorte de delivery $3,199
+          - generic [ref=f3e146]: Cabe si recortas delivery
+        - button "$10,036 · Mazda 3 nuevo La mensualidad del que preguntaste No cabe hoy" [ref=f3e148] [cursor=pointer]:
+          - paragraph [ref=f3e150]: $10,036 · Mazda 3 nuevo
+          - paragraph [ref=f3e151]: La mensualidad del que preguntaste
+          - generic [ref=f3e152]: No cabe hoy
+      - paragraph [ref=f3e155]: Con tu nómina Banorte la tasa baja de 13.9% a 11.5% — son $412 menos al mes.
+    - generic [ref=f3e21]:
+      - button "Dictar" [ref=f3e22] [cursor=pointer]
+      - textbox "Pregunta para el asesor" [ref=f3e27]:
+        - /placeholder: Pregúntame lo que sea…
+      - button "Enviar" [disabled] [ref=f3e156]

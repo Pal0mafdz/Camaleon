@@ -1,0 +1,13 @@
+- generic [ref=e6]:
+  - generic [ref=e7]:
+    - button [ref=e8] [cursor=pointer]:
+      - heading "Karla" [level=6] [ref=e9]
+    - button "Actividad MCP" [ref=e12] [cursor=pointer]:
+      - generic [ref=e14]: MCP
+  - generic [ref=e15]: Pensando…
+  - generic [ref=e22]:
+    - button "Dictar" [ref=e23] [cursor=pointer]
+    - textbox "Pregunta para el asesor" [ref=e28]:
+      - /placeholder: Pregúntame lo que sea…
+    - button "Enviar" [ref=e29] [cursor=pointer]
+    - button "Detener"

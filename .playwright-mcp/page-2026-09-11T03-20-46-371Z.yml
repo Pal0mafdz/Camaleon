@@ -1,0 +1,19 @@
+- generic [ref=f6e3]:
+  - complementary [ref=f6e4]:
+    - generic [ref=f6e5]:
+      - generic [ref=f6e6]: Banorte
+      - heading "Camaleón" [level=2] [ref=f6e9]
+      - paragraph [ref=f6e10]: "Un asesor que no te da pantallas: te arma la que necesitas, con tu dinero real."
+    - generic [ref=f6e11]:
+      - generic [ref=f6e12]: Actividad MCP
+      - paragraph [ref=f6e18]: Todavía no se ha llamado ninguna herramienta.
+  - main [ref=f6e19]:
+    - generic [ref=f6e20]:
+      - 'button "Perfil actual: Karla. Cambiar de perfil" [ref=f6e22] [cursor=pointer]':
+        - heading "Karla" [level=6] [ref=f6e23]
+      - generic [ref=f6e34]:
+        - button "Dictar" [ref=f6e35] [cursor=pointer]
+        - textbox "Pregunta para el asesor" [ref=f6e40]:
+          - /placeholder: Pregúntame lo que sea…
+        - button "Enviar" [disabled] [ref=f6e41]
+        - button "Detener" [ref=f6e46] [cursor=pointer]

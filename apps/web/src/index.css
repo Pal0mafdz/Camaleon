@@ -1,16 +1,128 @@
-/* Non-Tailwind CSS framework styles */
-:root {
-  --color-background: #ffffff;
-  --color-foreground: #1a1a1a;
-  --color-primary: #3b82f6;
-  --color-secondary: #64748b;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   Camaleón × Banorte — capa de tokens
+   Fuente de verdad: DESIGN.md (raíz del repo).
+   Ningún hex ni rgba() vive fuera de este archivo y de app/theme.ts.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.dark {
-  --color-background: #1a1a1a;
-  --color-foreground: #fafafa;
-  --color-primary: #60a5fa;
-  --color-secondary: #94a3b8;
+:root {
+  /* ── Marca ──────────────────────────────────────────────────────────── */
+  --brand-red: #ef2945; /* PMS Red 032 C */
+  --brand-red-deep: #c4102a;
+  --brand-brown: #684d3d; /* PMS 7532 C */
+
+  /* ── Superficies ────────────────────────────────────────────────────── */
+  --surface-canvas: #f4f1ee; /* arena cálida */
+  --surface-sunken: #ebe5e0;
+  --surface-card: #ffffff;
+  --surface-floating: rgba(255, 255, 255, 0.86);
+  --surface-floating-solid: rgba(255, 255, 255, 0.94);
+  --surface-ink: #241c17;
+  --surface-ink-raised: #33291f;
+  --surface-map: #e8ede4;
+  --canvas-veil: rgba(244, 241, 238, 0.82);
+
+  /* Velo único para toda superficie con fotografía. */
+  --scrim-media: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.34) 0%,
+    rgba(0, 0, 0, 0.04) 45%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+
+  /* ── Tinta ──────────────────────────────────────────────────────────── */
+  --ink: #241c17;
+  --ink-dim: #6e625a;
+  --ink-faint: #a79c94;
+  --ink-on-dark: #ffffff;
+  --ink-on-dark-dim: rgba(255, 255, 255, 0.62);
+  --ink-on-dark-faint: rgba(255, 255, 255, 0.42);
+
+  /* ── Semántica ──────────────────────────────────────────────────────── */
+  --good: #0e9f6e;
+  --good-ink: #076b4c;
+  --good-on-dark: #3ddca5;
+  --warn: #c2610a;
+  --warn-ink: #8f4708;
+  --bad: #d92d20;
+  --bad-ink: #b42318;
+  --bad-on-dark: #ff8a9b;
+
+  /* ── Rampa de datos ─────────────────────────────────────────────────── */
+  --viz-1: #ef2945;
+  --viz-2: #684d3d;
+  --viz-3: #c97c10;
+  --viz-4: #2d4e8a;
+  --viz-5: #1f6f5c;
+  --viz-6: #b4527f;
+  --viz-7: #8c7f76;
+
+  /* ── Servidores MCP ─────────────────────────────────────────────────── */
+  --srv-banorte-on-dark: #ff9aa8;
+  --srv-research: #2d4e8a;
+  --srv-research-on-dark: #9db8e8;
+
+  /* ── Tintes (sustituyen los rgba() sueltos) ─────────────────────────── */
+  --tint-ink-3: rgba(36, 28, 23, 0.03);
+  --tint-ink-5: rgba(36, 28, 23, 0.05);
+  --tint-ink-8: rgba(36, 28, 23, 0.08);
+  --tint-ink-12: rgba(36, 28, 23, 0.12);
+  --tint-ink-20: rgba(36, 28, 23, 0.2);
+  --tint-ink-32: rgba(36, 28, 23, 0.32);
+  --tint-red-8: rgba(239, 41, 69, 0.08);
+  --tint-red-14: rgba(239, 41, 69, 0.14);
+  --tint-red-32: rgba(239, 41, 69, 0.32);
+  --tint-good-12: rgba(14, 159, 110, 0.12);
+  --tint-warn-10: rgba(194, 97, 10, 0.1);
+  --tint-bad-8: rgba(217, 45, 32, 0.08);
+  --tint-white-8: rgba(255, 255, 255, 0.08);
+  --tint-white-14: rgba(255, 255, 255, 0.14);
+
+  /* ── Radios ─────────────────────────────────────────────────────────── */
+  --radius-xs: 10px;
+  --radius-s: 14px;
+  --radius-m: 18px;
+  --radius-l: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  /* ── Profundidad ────────────────────────────────────────────────────── */
+  --elev-hairline: inset 0 0 0 1px var(--tint-ink-5);
+  --elev-1: 0 1px 2px -1px rgba(36, 28, 23, 0.1), 0 8px 20px -10px rgba(36, 28, 23, 0.16);
+  --elev-2: 0 2px 4px -2px rgba(36, 28, 23, 0.1), 0 16px 36px -16px rgba(36, 28, 23, 0.22);
+  --elev-3: 0 4px 10px -4px rgba(36, 28, 23, 0.12), 0 28px 60px -24px rgba(36, 28, 23, 0.3);
+  --elev-ink: 0 2px 8px -3px rgba(36, 28, 23, 0.34), 0 26px 54px -22px rgba(36, 28, 23, 0.46);
+  --elev-pin: 0 2px 8px -1px rgba(196, 16, 42, 0.34);
+  --gloss-light: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  --gloss-ink: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+
+  /* ── Movimiento ─────────────────────────────────────────────────────── */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms;
+  --dur-standard: 240ms;
+  --dur-emphasis: 480ms;
+
+  /* ── Interacción ────────────────────────────────────────────────────── */
+  --tap-min: 44px;
+  --focus-ring: 0 0 0 2px var(--surface-card), 0 0 0 4px var(--tint-red-32);
+  --focus-ring-ink: 0 0 0 2px var(--surface-ink), 0 0 0 4px var(--tint-red-32);
+
+  /* ── Tipografía ─────────────────────────────────────────────────────── */
+  --font-ui: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --type-hero: 76px;
+
+  /* ── Shell ──────────────────────────────────────────────────────────── */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  /* Aire que el lienzo reserva bajo el último widget para que nunca quede
+     atrapado detrás de la command bar flotante. */
+  --dock-clearance: 108px;
+  /* Alto del header flotante: 44px de objetivo táctil + 12px arriba y abajo. */
+  --header-h: calc(var(--safe-top) + 68px);
+  --gutter: 16px;
 }
 
 * {
@@ -19,10 +131,114 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#app {
+  height: 100%;
+}
+
 body {
-  font-family: "Inter Variable", system-ui, sans-serif;
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+  font-family: var(--font-ui);
+  background-color: var(--surface-canvas);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  /* El lienzo es una app, no un documento: el texto no se selecciona por
+     accidente al arrastrar una tarjeta. Los campos de entrada se reactivan. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+/* ── Foco visible ──────────────────────────────────────────────────────────
+   `BareButton` elimina el outline nativo, así que el anillo tiene que ser
+   global y obligatorio: sin esto la app es inusable con teclado. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-s);
+}
+
+button:focus-visible,
+[role="button"]:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Superficie de tarjeta ─────────────────────────────────────────────────
+   Antes esto era "liquid glass": un `backdrop-filter` sobre CADA tarjeta,
+   dentro del scroller. Sobre fondo claro no aportaba nada visualmente y
+   obligaba a la GPU a repintar el desenfoque en cada frame de scroll.
+   Ahora es papel opaco elevado por dos sombras (contacto + ambiental) y un
+   anillo hairline. El nombre se conserva porque lo consumen ~15 componentes. */
+.liquid-glass {
+  background: var(--surface-card);
+  box-shadow: var(--elev-hairline), var(--elev-1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Superficies flotantes FIJAS (header, command bar, hoja MCP). Son las únicas
+   que pueden permitirse desenfoque: no viven dentro del contenedor que scrollea. */
+.liquid-glass-solid {
+  background: var(--surface-floating-solid);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--elev-hairline), var(--elev-3);
+}
+
+/* ── Scroll ────────────────────────────────────────────────────────────── */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* El hijo scrolleable de un grid/flex se niega a encoger sin esto y empuja
+   las filas fijas fuera de pantalla en vez de hacer overflow. */
+.scroll-body {
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Disuelve el contenido bajo la command bar en vez de cortarlo en seco. */
+.dock-scrim {
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--surface-canvas) 22%,
+    color-mix(in srgb, var(--surface-canvas) 72%, transparent) 58%,
+    transparent 100%
+  );
+}
+
+/* ── Tipografía display recortada (va sobre fotografía) ────────────────── */
+.clip-display {
+  font-size: var(--type-hero);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.92;
+  white-space: nowrap;
+}
+
+/* ── Movimiento reducido ───────────────────────────────────────────────────
+   Los muelles de `motion` se neutralizan en JS (useMotionPrefs). Esto cubre
+   lo que se anima por CSS y cualquier bucle que se escape. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

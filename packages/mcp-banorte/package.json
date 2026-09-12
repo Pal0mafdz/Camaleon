@@ -1,0 +1,21 @@
+{
+  "name": "@camaleon/mcp-banorte",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@camaleon/db": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@camaleon/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

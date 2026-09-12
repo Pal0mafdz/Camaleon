@@ -50,6 +50,12 @@ camaleon/
 - `pnpm db:push` - Push database schema
 - `pnpm db:studio` - Open database UI
 
+Local development uses `http://localhost:5174` for the frontend and
+`http://localhost:3000` for the API. Vite uses `strictPort` so an occupied 5174
+fails explicitly instead of switching to an origin blocked by CORS. Keep
+`apps/server/.env`'s `CORS_ORIGIN` aligned with the frontend origin and
+`apps/web/.env`'s `VITE_SERVER_URL` aligned with the API URL.
+
 ## Better Fullstack project context
 
 `bts.jsonc` is the authority for the current Stack Graph. Its `stackParts` array owns role selection and `ownerPartId` bindings. Top-level option fields are a compatibility projection and must not become a second mutation path.

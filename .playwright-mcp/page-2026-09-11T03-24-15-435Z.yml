@@ -1,0 +1,13 @@
+- main [ref=f12e3]:
+  - generic [ref=f12e4]:
+    - generic [ref=f12e5]:
+      - 'button "Perfil actual: Karla. Cambiar de perfil" [ref=f12e6] [cursor=pointer]':
+        - heading "Karla" [level=6] [ref=f12e7]
+      - button "Actividad MCP, 0 herramientas" [ref=f12e10] [cursor=pointer]:
+        - generic [ref=f12e12]: MCP
+    - generic [ref=f12e21]:
+      - button "Dictar" [ref=f12e22] [cursor=pointer]
+      - textbox "Pregunta para el asesor" [ref=f12e27]:
+        - /placeholder: Pregúntame lo que sea…
+      - button "Enviar" [disabled] [ref=f12e28]
+      - button "Detener" [ref=f12e33] [cursor=pointer]

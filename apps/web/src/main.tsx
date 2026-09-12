@@ -1,13 +1,19 @@
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
 import ReactDOM from "react-dom/client";
-import { RouterProvider } from "react-router";
-
+import { AppShell } from "./app/app-shell";
+import { theme } from "./app/theme";
+import { CanvasScreen } from "./canvas/canvas-screen";
 import "./index.css";
-import { router } from "./router";
 
 const rootElement = document.getElementById("app");
+if (!rootElement) throw new Error("Root element not found");
 
-if (!rootElement) {
-  throw new Error("Root element not found");
-}
-
-ReactDOM.createRoot(rootElement).render(<RouterProvider router={router} />);
+ReactDOM.createRoot(rootElement).render(
+  <ThemeProvider theme={theme}>
+    <CssBaseline />
+    <AppShell>
+      <CanvasScreen />
+    </AppShell>
+  </ThemeProvider>,
+);

@@ -1,0 +1,47 @@
+- main [ref=f3e3]:
+  - generic [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - 'button "Perfil actual: Karla. Cambiar de perfil" [ref=f3e6] [cursor=pointer]':
+        - heading "Karla" [level=6] [ref=f3e7]
+      - button "Actividad MCP, 1 herramientas" [ref=f3e123] [cursor=pointer]:
+        - generic [ref=f3e12]: MCP · 1
+    - generic [ref=f3e13]:
+      - generic [ref=f3e160]:
+        - heading "Estos sí van contigo" [level=5] [ref=f3e161]
+        - generic [ref=f3e162]:
+          - button "Mazda 3 2022 Seminuevo · 34,000 km $339,900 · $7,417/mes Dentro de tu alcance" [ref=f3e163] [cursor=pointer]:
+            - heading "Mazda 3 2022" [level=4] [ref=f3e166]
+            - generic [ref=f3e167]:
+              - paragraph [ref=f3e168]: Seminuevo · 34,000 km
+              - generic [ref=f3e169]:
+                - heading "$339,900" [level=6] [ref=f3e170]
+                - paragraph [ref=f3e171]: · $7,417/mes
+                - generic [ref=f3e172]: Dentro de tu alcance
+          - button "Mazda 2 2025 Nuevo · versión i Touring $299,900 · $6,544/mes Dentro de tu alcance" [ref=f3e173] [cursor=pointer]:
+            - heading "Mazda 2 2025" [level=4] [ref=f3e176]
+            - generic [ref=f3e177]:
+              - paragraph [ref=f3e178]: Nuevo · versión i Touring
+              - generic [ref=f3e179]:
+                - heading "$299,900" [level=6] [ref=f3e180]
+                - paragraph [ref=f3e181]: · $6,544/mes
+                - generic [ref=f3e182]: Dentro de tu alcance
+          - button "Mazda 3 2025 Nuevo · el que preguntaste $459,900 · $10,036/mes Te queda a 12 meses" [ref=f3e183] [cursor=pointer]:
+            - heading "Mazda 3 2025" [level=4] [ref=f3e186]
+            - generic [ref=f3e187]:
+              - paragraph [ref=f3e188]: Nuevo · el que preguntaste
+              - generic [ref=f3e189]:
+                - heading "$459,900" [level=6] [ref=f3e190]
+                - paragraph [ref=f3e191]: · $10,036/mes
+                - generic [ref=f3e192]: Te queda a 12 meses
+      - generic [ref=f3e193]:
+        - generic [ref=f3e194]: ¿Y si…?
+        - generic [ref=f3e196]:
+          - button [ref=f3e197] [cursor=pointer]:
+            - paragraph [ref=f3e198]: "Auto: ver el Mazda 3 2022 seminuevo"
+          - button [ref=f3e199] [cursor=pointer]:
+            - paragraph [ref=f3e200]: ¿A dónde se me va el dinero?
+    - generic [ref=f3e21]:
+      - button "Dictar" [ref=f3e22] [cursor=pointer]
+      - textbox "Pregunta para el asesor" [ref=f3e27]:
+        - /placeholder: Pregúntame lo que sea…
+      - button "Enviar" [disabled] [ref=f3e201]
