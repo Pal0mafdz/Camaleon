@@ -131,12 +131,14 @@ export function Field({
   onChange,
   placeholder,
   numeric = false,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (next: string) => void;
   placeholder: string;
   numeric?: boolean;
+  type?: "text" | "password" | "email";
 }) {
   return (
     <Box>
@@ -144,6 +146,7 @@ export function Field({
         {label}
       </Typography>
       <InputBase
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -151,7 +154,7 @@ export function Field({
           "aria-label": label,
           inputMode: numeric ? "numeric" : "text",
           enterKeyHint: "next",
-          autoComplete: "off",
+          autoComplete: type === "password" ? "current-password" : "off",
         }}
         sx={{
           width: "100%",

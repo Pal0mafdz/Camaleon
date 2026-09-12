@@ -50,3 +50,6 @@ tmp
 temp
 # Better Fullstack recovery snapshots
 .bts/recovery
+
+# graphify knowledge graph output
+graphify-out

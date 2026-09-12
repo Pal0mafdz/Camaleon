@@ -1,20 +1,12 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { ChevronDown, SquarePen } from "lucide-react";
+import { LogOut, SquarePen } from "lucide-react";
+import { logout as logoutRequest } from "../api/client";
 import { TOKENS } from "../app/theme";
+import { useAuth } from "../auth/store";
 import { McpBadge } from "./mcp-panel";
 import { useCanvas } from "./store";
 import { MotionButton, spring, TapTarget, useMotionPrefs } from "./widgets/shell";
-
-/** Perfiles demo. Sin auth: el selector del header manda el id al servidor. */
-export const USERS = [
-  { id: "karla", name: "Karla", greeting: "Hola, Karla" },
-  { id: "roberto", name: "Don Roberto", greeting: "Buenas, Don Roberto" },
-] as const;
-
-export function activeUser(userId: string) {
-  return USERS.find((u) => u.id === userId) ?? USERS[0];
-}
 
 /**
  * Header del lienzo (imposter: vive fuera del flujo del scroll).
@@ -25,17 +17,16 @@ export function activeUser(userId: string) {
  */
 export function CanvasHeader({ lifted, showMcp }: { lifted: boolean; showMcp: boolean }) {
   const { t } = useMotionPrefs();
-  const userId = useCanvas((s) => s.userId);
-  const setUserId = useCanvas((s) => s.setUserId);
+  const user = useAuth((s) => s.user);
+  const authLogout = useAuth((s) => s.logout);
   const setTab = useCanvas((s) => s.setTab);
   const clearCanvas = useCanvas((s) => s.clearCanvas);
-  const user = activeUser(userId);
 
-  function switchUser() {
-    const next = USERS[(USERS.findIndex((u) => u.id === userId) + 1) % USERS.length];
-    setUserId(next.id);
-    setTab("inicio");
-    clearCanvas();
+  function logout() {
+    logoutRequest().catch(() => {
+      // La sesión se limpia localmente aunque la llamada al servidor falle.
+    });
+    authLogout();
   }
 
   function newConversation() {
@@ -70,10 +61,10 @@ export function CanvasHeader({ lifted, showMcp }: { lifted: boolean; showMcp: bo
     >
       <MotionButton
         type="button"
-        onClick={switchUser}
+        onClick={logout}
         whileTap={{ scale: 0.96 }}
         transition={t(spring)}
-        aria-label={`Perfil actual: ${user.name}. Cambiar de perfil`}
+        aria-label={`Sesión de ${user?.name ?? "invitado"}. Cerrar sesión`}
         sx={{
           ...TapTarget,
           justifyContent: "flex-start",
@@ -84,8 +75,8 @@ export function CanvasHeader({ lifted, showMcp }: { lifted: boolean; showMcp: bo
           color: "text.primary",
         }}
       >
-        <Typography variant="subtitle1">{user.name}</Typography>
-        <ChevronDown size={16} color={TOKENS.inkFaint} />
+        <Typography variant="subtitle1">{user?.name ?? ""}</Typography>
+        <LogOut size={16} color={TOKENS.inkFaint} />
       </MotionButton>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>

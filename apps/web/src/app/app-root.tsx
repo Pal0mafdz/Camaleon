@@ -3,6 +3,7 @@ import { CanvasScreen } from "../canvas/canvas-screen";
 import { useCanvas } from "../canvas/store";
 import { HistorialScreen } from "../screens/historial-screen";
 import { MetasScreen } from "../screens/metas-screen";
+import { PreferencesScreen } from "../screens/preferences-screen";
 import { TabBar } from "./tab-bar";
 
 /**
@@ -16,7 +17,7 @@ import { TabBar } from "./tab-bar";
  */
 export function AppRoot() {
   const tab = useCanvas((s) => s.tab);
-  const covered = tab === "metas" || tab === "historial";
+  const covered = tab === "metas" || tab === "historial" || tab === "ajustes";
 
   return (
     <>
@@ -32,6 +33,7 @@ export function AppRoot() {
 
       {tab === "metas" && <MetasScreen />}
       {tab === "historial" && <HistorialScreen />}
+      {tab === "ajustes" && <PreferencesScreen />}
 
       <TabBar />
     </>

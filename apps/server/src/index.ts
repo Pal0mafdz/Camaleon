@@ -2,12 +2,18 @@ import { google } from "@ai-sdk/google";
 import {
   createGoal,
   createPlan,
+  createSession,
+  createUser,
+  deleteSession,
   getConversation,
+  getUser,
+  getUserByEmail,
   listConversations,
   listGoals,
   listPlans,
   saveTurn,
   updateGoal,
+  updateUserPreferences,
 } from "@camaleon/db/queries";
 import { env } from "@camaleon/env/server";
 import { createBanorteServer } from "@camaleon/mcp-banorte";
@@ -24,14 +30,45 @@ import {
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { requireAuth } from "./auth";
 import { buildScript, type DemoScript, homeScript, pickScript } from "./demo";
 import { callMcpTool, mcpTools } from "./mcp";
 import { type PriorTurn, systemPrompt } from "./prompt";
 import { widgetTools } from "./widgets";
 
+const SESSION_DAYS = 30;
+
+/** Nunca mandamos el hash al cliente. */
+function toPublicUser(user: {
+  id: string;
+  name: string;
+  email: string;
+  uiMode: string;
+  theme: string;
+  notificationsEnabled: boolean;
+}) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    uiMode: user.uiMode,
+    theme: user.theme,
+    notificationsEnabled: user.notificationsEnabled,
+  };
+}
+
+async function issueSession(userId: string) {
+  const token = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  await createSession({ token, userId, expiresAt });
+  return token;
+}
+
 type CamaleonMessage = UIMessage<never, CamaleonDataParts>;
 
-const app = new Hono();
+export type AppEnv = { Variables: { userId: string } };
+
+const app = new Hono<AppEnv>();
 
 app.use(logger());
 app.use(
@@ -39,7 +76,13 @@ app.use(
   cors({
     origin: env.CORS_ORIGIN,
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["content-type", "accept", "mcp-session-id", "mcp-protocol-version"],
+    allowHeaders: [
+      "content-type",
+      "accept",
+      "authorization",
+      "mcp-session-id",
+      "mcp-protocol-version",
+    ],
     exposeHeaders: ["mcp-session-id"],
   }),
 );
@@ -111,7 +154,8 @@ app.post("/converse", async (c) => {
             widgets: (m.widgets as Widget[]).map((w) => ({
               id: w.id,
               type: w.type,
-              title: "title" in w.props && typeof w.props.title === "string" ? w.props.title : undefined,
+              title:
+                "title" in w.props && typeof w.props.title === "string" ? w.props.title : undefined,
             })),
           });
         }
@@ -217,6 +261,88 @@ function streamScript(script: DemoScript, tag: string) {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/* ------------------------------------------------------------------ */
+/* Auth y preferencias — sesión simple por token opaco                 */
+/* ------------------------------------------------------------------ */
+
+app.post("/auth/signup", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    name?: string;
+    email?: string;
+    password?: string;
+  };
+
+  const name = body.name?.trim();
+  const email = body.email?.trim().toLowerCase();
+  const password = body.password;
+
+  if (!name || !email || !password) {
+    return c.json({ error: "Faltan nombre, correo o contraseña" }, 400);
+  }
+  if (await getUserByEmail(email)) {
+    return c.json({ error: "Ya existe una cuenta con ese correo" }, 409);
+  }
+
+  const passwordHash = await Bun.password.hash(password);
+  const user = await createUser({
+    id: crypto.randomUUID(),
+    name,
+    email,
+    passwordHash,
+    age: 0,
+    occupation: "",
+    monthlyIncome: 0,
+    balance: 0,
+  });
+
+  const token = await issueSession(user.id);
+  return c.json({ token, user: toPublicUser(user) }, 201);
+});
+
+app.post("/auth/login", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { email?: string; password?: string };
+  const email = body.email?.trim().toLowerCase();
+  const password = body.password;
+
+  const user = email ? await getUserByEmail(email) : null;
+  const valid = user && password ? await Bun.password.verify(password, user.passwordHash) : false;
+  if (!user || !valid) return c.json({ error: "Correo o contraseña incorrectos" }, 401);
+
+  const token = await issueSession(user.id);
+  return c.json({ token, user: toPublicUser(user) });
+});
+
+app.post("/auth/logout", async (c) => {
+  const header = c.req.header("authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (token) await deleteSession(token);
+  return c.body(null, 204);
+});
+
+app.get("/auth/me", requireAuth, async (c) => {
+  const user = await getUser(c.get("userId") as string);
+  return user ? c.json(toPublicUser(user)) : c.json({ error: "Usuario no encontrado" }, 404);
+});
+
+app.get("/preferences/:userId", requireAuth, async (c) => {
+  const paramUserId = c.req.param("userId") as string;
+  if (paramUserId !== c.get("userId")) return c.json({ error: "No autorizado" }, 403);
+  const user = await getUser(paramUserId);
+  return user ? c.json(toPublicUser(user)) : c.json({ error: "Usuario no encontrado" }, 404);
+});
+
+app.patch("/preferences/:userId", requireAuth, async (c) => {
+  const paramUserId = c.req.param("userId") as string;
+  if (paramUserId !== c.get("userId")) return c.json({ error: "No autorizado" }, 403);
+  const body = (await c.req.json().catch(() => ({}))) as {
+    uiMode?: string;
+    theme?: string;
+    notificationsEnabled?: boolean;
+  };
+  const user = await updateUserPreferences(paramUserId, body);
+  return user ? c.json(toPublicUser(user)) : c.json({ error: "Usuario no encontrado" }, 404);
+});
 
 /* ------------------------------------------------------------------ */
 /* Metas, planes y conversaciones — persistencia REST                  */

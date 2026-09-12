@@ -4,7 +4,18 @@
  */
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "./index";
-import { conversations, goals, messages, plans, products, transactions, users } from "./schema";
+import { bandForAge, bandForIncome } from "./peer-bands";
+import {
+  conversations,
+  goals,
+  messages,
+  peerBenchmarks,
+  plans,
+  products,
+  sessions,
+  transactions,
+  users,
+} from "./schema";
 
 export type SpendingRow = { category: string; total: number; count: number };
 export type MerchantRow = { merchant: string; total: number; count: number };
@@ -16,6 +27,54 @@ export async function getUser(userId: string) {
 
 export async function listUsers() {
   return db.select().from(users);
+}
+
+export async function getUserByEmail(email: string) {
+  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return row ?? null;
+}
+
+export async function createUser(input: {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  age: number;
+  occupation: string;
+  monthlyIncome: number;
+  balance: number;
+}) {
+  const [row] = await db.insert(users).values(input).returning();
+  if (!row) throw new Error("No se pudo crear el usuario");
+  return row;
+}
+
+export async function createSession(input: { token: string; userId: string; expiresAt: Date }) {
+  const [row] = await db.insert(sessions).values(input).returning();
+  if (!row) throw new Error("No se pudo crear la sesión");
+  return row;
+}
+
+export async function getSessionByToken(token: string) {
+  const [row] = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+  if (!row || row.expiresAt.getTime() < Date.now()) return null;
+  return row;
+}
+
+export async function deleteSession(token: string) {
+  await db.delete(sessions).where(eq(sessions.token, token));
+}
+
+export async function updateUserPreferences(
+  userId: string,
+  patch: {
+    uiMode?: string;
+    theme?: string;
+    notificationsEnabled?: boolean;
+  },
+) {
+  const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
+  return row ?? null;
 }
 
 /** Saldo, ingreso mensual y quema promedio de los últimos 3 meses. */
@@ -117,6 +176,60 @@ export async function analyzeSpending(userId: string, months = 3) {
     byCategory: byCategory.map((r) => ({ ...r, monthly: Math.round(r.total / months) })),
     topMerchants: byMerchant.map((r) => ({ ...r, monthly: Math.round(r.total / months) })),
     recurring,
+  };
+}
+
+export type PeerComparisonRow = {
+  category: string;
+  userMonthly: number;
+  peerP25: number;
+  peerP50: number;
+  peerP75: number;
+  comparison: "bajo" | "similar" | "alto";
+};
+
+/**
+ * Compara el gasto mensual real del cliente contra la población sintética
+ * (`peer_benchmarks`, generada en `seed.ts`) de gente con su misma banda de
+ * edad e ingreso. Es la mitad que le falta al asesor: no solo "gastaste X",
+ * sino "gastaste X comparado con miles de personas parecidas a ti".
+ */
+export async function compareToPeers(userId: string, months = 3) {
+  const user = await getUser(userId);
+  if (!user) return null;
+
+  const balance = await getBalance(userId);
+  const spending = await analyzeSpending(userId, months);
+
+  const ageBand = bandForAge(user.age);
+  const incomeBand = bandForIncome(balance?.monthlyIncome ?? user.monthlyIncome);
+
+  const benchmarks = await db
+    .select()
+    .from(peerBenchmarks)
+    .where(and(eq(peerBenchmarks.ageBand, ageBand), eq(peerBenchmarks.incomeBand, incomeBand)));
+
+  const byCategory: PeerComparisonRow[] = [];
+  for (const row of spending.byCategory) {
+    const bench = benchmarks.find((b) => b.category === row.category);
+    if (!bench) continue;
+    const comparison =
+      row.monthly < bench.p25 ? "bajo" : row.monthly > bench.p75 ? "alto" : "similar";
+    byCategory.push({
+      category: row.category,
+      userMonthly: row.monthly,
+      peerP25: bench.p25,
+      peerP50: bench.p50,
+      peerP75: bench.p75,
+      comparison,
+    });
+  }
+
+  return {
+    ageBand,
+    incomeBand,
+    sampleSize: benchmarks[0]?.sampleSize ?? 0,
+    byCategory,
   };
 }
 
