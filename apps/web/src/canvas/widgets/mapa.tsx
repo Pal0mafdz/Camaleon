@@ -4,7 +4,7 @@ import Typography from "@mui/material/Typography";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo } from "react";
-import { MapContainer, Marker, Polyline, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import { TOKENS } from "../../app/theme";
 import { AskPill } from "./bits";
 import {
@@ -80,7 +80,9 @@ export function MapaWidget({
           attributionControl={false}
           style={{ height: "100%", width: "100%" }}
         >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {/* osm-intl: mismas tiles de OSM pero con etiquetas de lugar traducidas
+              (Accept-Language del navegador) en vez del idioma local grabado en el tile. */}
+          <TileLayer url="https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png" />
           <FitBounds positions={positions} />
           <Polyline
             positions={positions}
@@ -92,7 +94,18 @@ export function MapaWidget({
             }}
           />
           {props.stops.map((s, i) => (
-            <Marker key={`stop-${i}`} position={[s.lat, s.lng]} icon={numberedIcon(s.n)} />
+            <Marker key={`stop-${i}`} position={[s.lat, s.lng]} icon={numberedIcon(s.n)}>
+              <Popup closeButton={false} minWidth={180}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.primary" }}>
+                  {s.label}
+                </Typography>
+                {s.sublabel && (
+                  <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+                    {s.sublabel}
+                  </Typography>
+                )}
+              </Popup>
+            </Marker>
           ))}
         </MapContainer>
       </Box>
