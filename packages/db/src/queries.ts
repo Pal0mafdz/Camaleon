@@ -4,10 +4,12 @@
  */
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "./index";
+import { bandForAge, bandForIncome } from "./peer-bands";
 import {
   conversations,
   goals,
   messages,
+  peerBenchmarks,
   plans,
   products,
   sessions,
@@ -174,6 +176,60 @@ export async function analyzeSpending(userId: string, months = 3) {
     byCategory: byCategory.map((r) => ({ ...r, monthly: Math.round(r.total / months) })),
     topMerchants: byMerchant.map((r) => ({ ...r, monthly: Math.round(r.total / months) })),
     recurring,
+  };
+}
+
+export type PeerComparisonRow = {
+  category: string;
+  userMonthly: number;
+  peerP25: number;
+  peerP50: number;
+  peerP75: number;
+  comparison: "bajo" | "similar" | "alto";
+};
+
+/**
+ * Compara el gasto mensual real del cliente contra la población sintética
+ * (`peer_benchmarks`, generada en `seed.ts`) de gente con su misma banda de
+ * edad e ingreso. Es la mitad que le falta al asesor: no solo "gastaste X",
+ * sino "gastaste X comparado con miles de personas parecidas a ti".
+ */
+export async function compareToPeers(userId: string, months = 3) {
+  const user = await getUser(userId);
+  if (!user) return null;
+
+  const balance = await getBalance(userId);
+  const spending = await analyzeSpending(userId, months);
+
+  const ageBand = bandForAge(user.age);
+  const incomeBand = bandForIncome(balance?.monthlyIncome ?? user.monthlyIncome);
+
+  const benchmarks = await db
+    .select()
+    .from(peerBenchmarks)
+    .where(and(eq(peerBenchmarks.ageBand, ageBand), eq(peerBenchmarks.incomeBand, incomeBand)));
+
+  const byCategory: PeerComparisonRow[] = [];
+  for (const row of spending.byCategory) {
+    const bench = benchmarks.find((b) => b.category === row.category);
+    if (!bench) continue;
+    const comparison =
+      row.monthly < bench.p25 ? "bajo" : row.monthly > bench.p75 ? "alto" : "similar";
+    byCategory.push({
+      category: row.category,
+      userMonthly: row.monthly,
+      peerP25: bench.p25,
+      peerP50: bench.p50,
+      peerP75: bench.p75,
+      comparison,
+    });
+  }
+
+  return {
+    ageBand,
+    incomeBand,
+    sampleSize: benchmarks[0]?.sampleSize ?? 0,
+    byCategory,
   };
 }
 

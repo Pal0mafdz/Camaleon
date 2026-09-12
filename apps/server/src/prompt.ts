@@ -2,7 +2,10 @@
  * El cerebro del agente. Este texto es, literalmente, el producto:
  * define cuándo el lienzo se ve brillante y cuándo se ve genérico.
  */
-export type PriorTurn = { question: string; widgets: { id: string; type: string; title?: string }[] };
+export type PriorTurn = {
+  question: string;
+  widgets: { id: string; type: string; title?: string }[];
+};
 
 export function systemPrompt(
   userId: string,
@@ -21,7 +24,8 @@ export function systemPrompt(
           .map(
             (t, i) =>
               `${i + 1}. Usuario: "${t.question}" → pintaste: ${
-                t.widgets.map((w) => `${w.type}${w.title ? ` "${w.title}"` : ""}`).join(", ") || "nada"
+                t.widgets.map((w) => `${w.type}${w.title ? ` "${w.title}"` : ""}`).join(", ") ||
+                "nada"
               }`,
           )
           .join("\n")}`;
@@ -71,6 +75,7 @@ Para PREGUNTAS PUNTUALES ("¿a dónde se me va el dinero?", "¿me conviene pagar
 
 1. **Primero investiga, luego pinta.** Antes de dibujar nada, consulta los datos reales:
    - \`get_balance\`, \`analyze_spending\`, \`project_cashflow\`, \`get_transactions\` para el dinero del usuario.
+   - \`compare_to_peers\` cuando analices gasto por categoría: convierte "gastaste $X" en "gastaste $X, más que la mayoría de gente de tu edad e ingreso" — es lo que hace que el insight se sienta real, no una resta. Complementa a \`analyze_spending\`, nunca lo reemplaza.
    - \`get_products\` y \`simulate_loan\` para productos Banorte.
    - \`search_web\` cuando necesites un dato del mundo real que no está en el banco (precio de un coche, costo de un viaje, tasa de CETES). NUNCA inventes un precio: búscalo.
 2. **Descompón la pregunta vaga en decisiones concretas.** "¿Me alcanza para un Mazda 3?" no es una pregunta de sí/no: es enganche, mensualidad, plazo y qué recortar. Cada decisión merece su propio widget.
@@ -82,6 +87,7 @@ Para PREGUNTAS PUNTUALES ("¿a dónde se me va el dinero?", "¿me conviene pagar
 - Empieza con \`paint_hero\` SOLO si el lienzo está vacío. Si ya hay cosas pintadas, no repitas el hero.
 - Reusa el mismo \`id\` de un widget ya pintado para ACTUALIZARLO en vez de duplicarlo (se re-anima solo).
 - \`paint_gap\` es tu widget estrella para "¿me alcanza?": muestra el faltante exacto.
+- Cuando uses \`compare_to_peers\`, pinta el resultado con \`paint_alert\`: \`title\` con la categoría y el veredicto (ej. "Gastas más que la mayoría en comida"), \`detail.rows\` con el gasto del usuario vs. la mediana de su grupo, y \`detail.note\` con el dato concreto (ej. "Tu gasto en comida está en el rango alto de gente de tu edad e ingreso").
 - \`paint_paths\` debe incluir SIEMPRE una opción con producto Banorte, y también las alternativas honestas (ahorrar más, esperar, comprar algo más barato). El usuario confía en ti porque no le vendes a ciegas.
 - \`paint_simulator\` cuando haya un préstamo: el usuario mueve el enganche y ve la mensualidad al instante, sin volver a preguntarte.
 - \`paint_actionCard\` o un \`action\` dentro de otro widget SOLO cuando haya algo real que ejecutar (crear una meta de ahorro con \`create_savings_goal\`). El campo \`confirm\` debe decir exactamente qué va a pasar.

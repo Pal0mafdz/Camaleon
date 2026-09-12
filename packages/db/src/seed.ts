@@ -8,7 +8,8 @@
  * respuestas interesantes: hay fugas de dinero detectables y margen real.
  */
 import { db } from "./index";
-import { goals, products, transactions, users } from "./schema";
+import { AGE_BANDS, BENCHMARK_CATEGORIES, INCOME_BANDS } from "./peer-bands";
+import { goals, peerBenchmarks, products, transactions, users } from "./schema";
 
 type Seed = {
   merchant: string;
@@ -288,11 +289,90 @@ const PRODUCTS: (typeof products.$inferInsert)[] = [
 /** Password compartida de las cuentas demo. Nada de esto es seguro, es un hackathon. */
 const DEMO_PASSWORD = "banorte123";
 
+/**
+ * Población sintética para "comparado con gente como tú".
+ *
+ * En vez de guardar miles de perfiles con su historial completo, se genera
+ * la muestra en memoria y solo se guardan los percentiles (p25/p50/p75) por
+ * banda de edad + ingreso + categoría. Es la tabla `peer_benchmarks`: 180
+ * filas (5 edades × 4 ingresos × 9 categorías), no una base de datos de
+ * gente inventada.
+ */
+
+/** % del ingreso mensual que en promedio se va a cada categoría. */
+const CATEGORY_PCT: Record<(typeof BENCHMARK_CATEGORIES)[number], number> = {
+  vivienda: 0.28,
+  super: 0.1,
+  transporte: 0.07,
+  comida: 0.09,
+  servicios: 0.05,
+  suscripciones: 0.02,
+  compras: 0.06,
+  salud: 0.04,
+  entretenimiento: 0.03,
+};
+
+/** Ajustes por edad sobre el % base. Categoría ausente = sin ajuste (1x). */
+const AGE_MULT: Partial<Record<(typeof BENCHMARK_CATEGORIES)[number], Record<string, number>>> = {
+  entretenimiento: { "18-25": 1.6, "26-35": 1.2, "36-50": 0.9, "51-65": 0.6, "65+": 0.4 },
+  salud: { "18-25": 0.5, "26-35": 0.7, "36-50": 1.0, "51-65": 1.4, "65+": 1.8 },
+  vivienda: { "18-25": 0.8, "26-35": 1.1, "36-50": 1.1, "51-65": 0.9, "65+": 0.7 },
+};
+
+const PROFILES_PER_BAND = 400;
+
+function percentile(sorted: number[], p: number): number {
+  const idx = Math.min(sorted.length - 1, Math.floor(p * sorted.length));
+  return Math.round(sorted[idx] ?? 0);
+}
+
+type CategorySamples = Record<(typeof BENCHMARK_CATEGORIES)[number], number[]>;
+
+function buildPeerBenchmarks(rand: () => number): (typeof peerBenchmarks.$inferInsert)[] {
+  const rows: (typeof peerBenchmarks.$inferInsert)[] = [];
+
+  for (const ageBand of AGE_BANDS) {
+    for (const incomeBandDef of INCOME_BANDS) {
+      const min = incomeBandDef.min;
+      const max = Number.isFinite(incomeBandDef.max) ? incomeBandDef.max : min * 1.8;
+
+      const samples = {} as CategorySamples;
+      for (const category of BENCHMARK_CATEGORIES) samples[category] = [];
+
+      for (let i = 0; i < PROFILES_PER_BAND; i++) {
+        const income = min + rand() * (max - min);
+        for (const category of BENCHMARK_CATEGORIES) {
+          const mult = AGE_MULT[category]?.[ageBand] ?? 1;
+          const base = income * CATEGORY_PCT[category] * mult;
+          const noise = 0.7 + rand() * 0.6; // ±30% de variación entre perfiles
+          samples[category].push(base * noise);
+        }
+      }
+
+      for (const category of BENCHMARK_CATEGORIES) {
+        const sorted = samples[category].sort((a, b) => a - b);
+        rows.push({
+          ageBand,
+          incomeBand: incomeBandDef.id,
+          category,
+          p25: percentile(sorted, 0.25),
+          p50: percentile(sorted, 0.5),
+          p75: percentile(sorted, 0.75),
+          sampleSize: PROFILES_PER_BAND,
+        });
+      }
+    }
+  }
+
+  return rows;
+}
+
 async function main() {
   console.log("Limpiando tablas…");
   await db.delete(transactions);
   await db.delete(goals);
   await db.delete(products);
+  await db.delete(peerBenchmarks);
   await db.delete(users);
 
   console.log("Sembrando usuarios…");
@@ -339,6 +419,10 @@ async function main() {
   for (let i = 0; i < robertoRows.length; i += 100) {
     await db.insert(transactions).values(robertoRows.slice(i, i + 100));
   }
+
+  console.log("Sembrando referencias de comparación (población sintética)…");
+  const benchmarkRows = buildPeerBenchmarks(rand);
+  await db.insert(peerBenchmarks).values(benchmarkRows);
 
   console.log("Sembrando metas…");
   await db.insert(goals).values([

@@ -95,6 +95,23 @@ export const products = sqliteTable("products", {
   bullets: text().notNull(),
 });
 
+/**
+ * Percentiles de gasto de una población sintética (miles de perfiles
+ * generados en `seed.ts`), agregados por banda de edad + ingreso + categoría.
+ * No son datos de terceros reales: es lo que le da al asesor con quién
+ * comparar a un cliente ("gastas más que el 72% de gente como tú").
+ */
+export const peerBenchmarks = sqliteTable("peer_benchmarks", {
+  id: integer().primaryKey({ autoIncrement: true }),
+  ageBand: text().notNull(),
+  incomeBand: text().notNull(),
+  category: text().notNull(),
+  p25: real().notNull(),
+  p50: real().notNull(),
+  p75: real().notNull(),
+  sampleSize: integer().notNull(),
+});
+
 /** Una charla con el asesor: agrupa turnos y el lienzo resultante. */
 export const conversations = sqliteTable("conversations", {
   id: integer().primaryKey({ autoIncrement: true }),
@@ -121,6 +138,7 @@ export const messages = sqliteTable("messages", {
 
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
+export type PeerBenchmark = typeof peerBenchmarks.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
