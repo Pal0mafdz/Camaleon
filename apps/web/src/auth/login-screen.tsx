@@ -88,7 +88,13 @@ export function LoginScreen() {
           <Field label="Nombre" value={name} onChange={setName} placeholder="Tu nombre" />
         )}
         <Field label="Correo" value={email} onChange={setEmail} placeholder="tu@correo.com" />
-        <Field label="Contraseña" value={password} onChange={setPassword} placeholder="••••••••" />
+        <Field
+          label="Contraseña"
+          value={password}
+          onChange={setPassword}
+          placeholder="••••••••"
+          type="password"
+        />
 
         {error && <ScreenNote tone="bad">{error}</ScreenNote>}
 

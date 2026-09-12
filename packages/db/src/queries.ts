@@ -69,7 +69,6 @@ export async function updateUserPreferences(
     uiMode?: string;
     theme?: string;
     notificationsEnabled?: boolean;
-    dataSourceId?: string | null;
   },
 ) {
   const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();

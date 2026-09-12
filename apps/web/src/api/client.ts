@@ -114,7 +114,7 @@ export function getPreferences(userId: string): Promise<AuthUser> {
 
 export function patchPreferences(
   userId: string,
-  patch: Partial<Pick<AuthUser, "uiMode" | "theme" | "notificationsEnabled" | "dataSourceId">>,
+  patch: Partial<Pick<AuthUser, "uiMode" | "theme" | "notificationsEnabled">>,
 ): Promise<AuthUser> {
   return request<AuthUser>(`/preferences/${userId}`, body("PATCH", patch));
 }

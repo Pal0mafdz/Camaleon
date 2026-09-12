@@ -46,7 +46,6 @@ function toPublicUser(user: {
   uiMode: string;
   theme: string;
   notificationsEnabled: boolean;
-  dataSourceId: string | null;
 }) {
   return {
     id: user.id,
@@ -55,7 +54,6 @@ function toPublicUser(user: {
     uiMode: user.uiMode,
     theme: user.theme,
     notificationsEnabled: user.notificationsEnabled,
-    dataSourceId: user.dataSourceId,
   };
 }
 
@@ -341,7 +339,6 @@ app.patch("/preferences/:userId", requireAuth, async (c) => {
     uiMode?: string;
     theme?: string;
     notificationsEnabled?: boolean;
-    dataSourceId?: string | null;
   };
   const user = await updateUserPreferences(paramUserId, body);
   return user ? c.json(toPublicUser(user)) : c.json({ error: "Usuario no encontrado" }, 404);

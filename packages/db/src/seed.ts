@@ -310,7 +310,6 @@ async function main() {
       uiMode: "estandar",
       theme: "claro",
       notificationsEnabled: true,
-      dataSourceId: "raw.transacciones.movimientos_2026",
     },
     {
       id: "roberto",
@@ -324,7 +323,6 @@ async function main() {
       uiMode: "simple",
       theme: "claro",
       notificationsEnabled: true,
-      dataSourceId: null,
     },
   ]);
 

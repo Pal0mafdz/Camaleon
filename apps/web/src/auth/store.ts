@@ -8,7 +8,6 @@ export type AuthUser = {
   uiMode: string;
   theme: string;
   notificationsEnabled: boolean;
-  dataSourceId: string | null;
 };
 
 const TOKEN_KEY = "camaleon.token";

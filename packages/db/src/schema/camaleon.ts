@@ -19,8 +19,6 @@ export const users = sqliteTable("users", {
   /** Preferencia de tema: "claro" | "oscuro". La app hoy solo pinta claro. */
   theme: text().notNull().default("claro"),
   notificationsEnabled: integer({ mode: "boolean" }).notNull().default(true),
-  /** Fuente de datos elegida en Ajustes, ej. "raw.transacciones.movimientos". Mock: no hay conexión real todavía. */
-  dataSourceId: text(),
   createdAt: integer({ mode: "timestamp_ms" }).default(now).notNull(),
 });
 
