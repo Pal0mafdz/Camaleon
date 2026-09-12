@@ -3,10 +3,11 @@ import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
-/** Perfiles demo. Sin auth: el selector de la UI manda el id. */
 export const users = sqliteTable("users", {
   id: text().primaryKey(),
   name: text().notNull(),
+  email: text().notNull().unique(),
+  passwordHash: text().notNull(),
   age: integer().notNull(),
   occupation: text().notNull(),
   /** Ingreso mensual neto en MXN. */
@@ -15,7 +16,22 @@ export const users = sqliteTable("users", {
   balance: real().notNull(),
   /** Modo de presentación: "estandar" | "simple" (Don Roberto). */
   uiMode: text().notNull().default("estandar"),
+  /** Preferencia de tema: "claro" | "oscuro". La app hoy solo pinta claro. */
+  theme: text().notNull().default("claro"),
+  notificationsEnabled: integer({ mode: "boolean" }).notNull().default(true),
+  /** Fuente de datos elegida en Ajustes, ej. "raw.transacciones.movimientos". Mock: no hay conexión real todavía. */
+  dataSourceId: text(),
   createdAt: integer({ mode: "timestamp_ms" }).default(now).notNull(),
+});
+
+/** Sesión simple: el token opaco ES el id de la fila. Sin JWT, sin firma. */
+export const sessions = sqliteTable("sessions", {
+  token: text().primaryKey(),
+  userId: text()
+    .notNull()
+    .references(() => users.id),
+  createdAt: integer({ mode: "timestamp_ms" }).default(now).notNull(),
+  expiresAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 
 /** Movimientos de la cuenta. Es la fuente de verdad del MCP de Banorte. */
@@ -106,6 +122,7 @@ export const messages = sqliteTable("messages", {
 });
 
 export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;

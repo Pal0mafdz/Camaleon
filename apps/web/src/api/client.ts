@@ -1,5 +1,6 @@
 import { env } from "@camaleon/env/web";
 import type { Widget } from "@camaleon/shared";
+import { type AuthUser, useAuth } from "../auth/store";
 
 /**
  * Cliente REST de la capa persistente (metas, planes, historial).
@@ -64,13 +65,19 @@ export type Conversation = ConversationSummary & { messages: ConversationTurn[] 
  * las pantallas lo pintan tal cual, sin traducir códigos.
  */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = useAuth.getState().token;
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("authorization", `Bearer ${token}`);
+
   let res: Response;
   try {
-    res = await fetch(`${env.VITE_SERVER_URL}${path}`, init);
+    res = await fetch(`${env.VITE_SERVER_URL}${path}`, { ...init, headers });
   } catch {
     throw new Error("No pude contactar al servidor");
   }
+  if (res.status === 401) useAuth.getState().logout();
   if (!res.ok) throw new Error(`El servidor respondió ${res.status}`);
+  if (res.status === 204) return undefined as T;
   // Frontera de confianza: del otro lado está nuestro propio servidor tipado.
   return (await res.json()) as T;
 }
@@ -81,6 +88,35 @@ function body(method: "POST" | "PATCH", payload: unknown): RequestInit {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   };
+}
+
+export type AuthResponse = { token: string; user: AuthUser };
+
+export function login(email: string, password: string): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/login", body("POST", { email, password }));
+}
+
+export function signup(input: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/signup", body("POST", input));
+}
+
+export function logout(): Promise<void> {
+  return request<void>("/auth/logout", { method: "POST" });
+}
+
+export function getPreferences(userId: string): Promise<AuthUser> {
+  return request<AuthUser>(`/preferences/${userId}`);
+}
+
+export function patchPreferences(
+  userId: string,
+  patch: Partial<Pick<AuthUser, "uiMode" | "theme" | "notificationsEnabled" | "dataSourceId">>,
+): Promise<AuthUser> {
+  return request<AuthUser>(`/preferences/${userId}`, body("PATCH", patch));
 }
 
 export function listGoals(userId: string): Promise<Goal[]> {

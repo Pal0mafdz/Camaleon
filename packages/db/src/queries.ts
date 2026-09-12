@@ -4,7 +4,16 @@
  */
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "./index";
-import { conversations, goals, messages, plans, products, transactions, users } from "./schema";
+import {
+  conversations,
+  goals,
+  messages,
+  plans,
+  products,
+  sessions,
+  transactions,
+  users,
+} from "./schema";
 
 export type SpendingRow = { category: string; total: number; count: number };
 export type MerchantRow = { merchant: string; total: number; count: number };
@@ -16,6 +25,55 @@ export async function getUser(userId: string) {
 
 export async function listUsers() {
   return db.select().from(users);
+}
+
+export async function getUserByEmail(email: string) {
+  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return row ?? null;
+}
+
+export async function createUser(input: {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  age: number;
+  occupation: string;
+  monthlyIncome: number;
+  balance: number;
+}) {
+  const [row] = await db.insert(users).values(input).returning();
+  if (!row) throw new Error("No se pudo crear el usuario");
+  return row;
+}
+
+export async function createSession(input: { token: string; userId: string; expiresAt: Date }) {
+  const [row] = await db.insert(sessions).values(input).returning();
+  if (!row) throw new Error("No se pudo crear la sesión");
+  return row;
+}
+
+export async function getSessionByToken(token: string) {
+  const [row] = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+  if (!row || row.expiresAt.getTime() < Date.now()) return null;
+  return row;
+}
+
+export async function deleteSession(token: string) {
+  await db.delete(sessions).where(eq(sessions.token, token));
+}
+
+export async function updateUserPreferences(
+  userId: string,
+  patch: {
+    uiMode?: string;
+    theme?: string;
+    notificationsEnabled?: boolean;
+    dataSourceId?: string | null;
+  },
+) {
+  const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
+  return row ?? null;
 }
 
 /** Saldo, ingreso mensual y quema promedio de los últimos 3 meses. */

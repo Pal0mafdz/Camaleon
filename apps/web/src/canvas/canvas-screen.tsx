@@ -2,8 +2,9 @@ import Box from "@mui/material/Box";
 import { useMotionValueEvent, useScroll } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLayoutMode } from "../app/app-shell";
+import { useAuth } from "../auth/store";
 import { ask } from "./agent";
-import { activeUser, CanvasHeader } from "./canvas-header";
+import { CanvasHeader } from "./canvas-header";
 import { BootSkeleton, CanvasError, EmptyState, StatusPill } from "./canvas-states";
 import { CommandBar, Suggestions } from "./command-bar";
 import { McpPanel } from "./mcp-panel";
@@ -36,6 +37,7 @@ export function CanvasScreen() {
   const setTab = useCanvas((s) => s.setTab);
   const userId = useCanvas((s) => s.userId);
   const setConversationId = useCanvas((s) => s.setConversationId);
+  const userName = useAuth((s) => s.user?.name);
 
   const layout = useLayoutMode();
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +153,7 @@ export function CanvasScreen() {
           "& > *": { flexShrink: 0 },
         }}
       >
-        {empty && !busy && <EmptyState greeting={activeUser(userId).greeting} />}
+        {empty && !busy && <EmptyState greeting={`Hola, ${userName ?? ""}`} />}
         {empty && busy && <BootSkeleton />}
 
         <AnimatePresence mode="popLayout" initial={false}>

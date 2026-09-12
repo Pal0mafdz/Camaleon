@@ -285,6 +285,9 @@ const PRODUCTS: (typeof products.$inferInsert)[] = [
   },
 ];
 
+/** Password compartida de las cuentas demo. Nada de esto es seguro, es un hackathon. */
+const DEMO_PASSWORD = "banorte123";
+
 async function main() {
   console.log("Limpiando tablas…");
   await db.delete(transactions);
@@ -293,24 +296,35 @@ async function main() {
   await db.delete(users);
 
   console.log("Sembrando usuarios…");
+  const passwordHash = await Bun.password.hash(DEMO_PASSWORD);
   await db.insert(users).values([
     {
       id: "karla",
       name: "Karla Mendoza",
+      email: "karla@banorte.demo",
+      passwordHash,
       age: 28,
       occupation: "Diseñadora de producto",
       monthlyIncome: 28_400,
       balance: 43_820,
       uiMode: "estandar",
+      theme: "claro",
+      notificationsEnabled: true,
+      dataSourceId: "raw.transacciones.movimientos_2026",
     },
     {
       id: "roberto",
       name: "Roberto Salas",
+      email: "roberto@banorte.demo",
+      passwordHash,
       age: 67,
       occupation: "Jubilado",
       monthlyIncome: 16_300,
       balance: 128_500,
       uiMode: "simple",
+      theme: "claro",
+      notificationsEnabled: true,
+      dataSourceId: null,
     },
   ]);
 
@@ -342,6 +356,8 @@ async function main() {
   ]);
 
   console.log("Listo.");
+  console.log(`Login demo: karla@banorte.demo / ${DEMO_PASSWORD}`);
+  console.log(`Login demo: roberto@banorte.demo / ${DEMO_PASSWORD}`);
 }
 
 main().catch((err) => {
