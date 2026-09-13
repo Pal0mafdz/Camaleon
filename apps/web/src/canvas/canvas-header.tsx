@@ -1,22 +1,14 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { ChevronDown, SquarePen } from "lucide-react";
+import { LogOut, SquarePen } from "lucide-react";
 import { type MotionValue, useTransform } from "motion/react";
+import { logout as logoutRequest } from "../api/client";
 import { BrandLogo } from "../app/brand-logo";
 import { TOKENS } from "../app/theme";
+import { useAuth } from "../auth/store";
 import { McpBadge } from "./mcp-panel";
 import { useCanvas } from "./store";
 import { MotionBox, MotionButton, spring, TapTarget, useMotionPrefs } from "./widgets/shell";
-
-/** Perfiles demo. Sin auth: el selector del header manda el id al servidor. */
-export const USERS = [
-  { id: "karla", name: "Karla", greeting: "Hola, Karla" },
-  { id: "roberto", name: "Don Roberto", greeting: "Buenas, Don Roberto" },
-] as const;
-
-export function activeUser(userId: string) {
-  return USERS.find((u) => u.id === userId) ?? USERS[0];
-}
 
 /** Recorrido de scroll (px) en el que el velo pasa de invisible a pleno. */
 const VEIL_TRAVEL = 56;
@@ -38,21 +30,20 @@ export function CanvasHeader({
   showMcp: boolean;
 }) {
   const { t } = useMotionPrefs();
-  const userId = useCanvas((s) => s.userId);
-  const setUserId = useCanvas((s) => s.setUserId);
+  const user = useAuth((s) => s.user);
+  const authLogout = useAuth((s) => s.logout);
   const setTab = useCanvas((s) => s.setTab);
   const clearCanvas = useCanvas((s) => s.clearCanvas);
-  const user = activeUser(userId);
 
   const veil = useTransform(scrollY, [0, VEIL_TRAVEL], [0, 1]);
   // El nombre se asienta 2px mientras el velo sube: el header "se apoya".
   const settle = useTransform(scrollY, [0, VEIL_TRAVEL], [0, 2]);
 
-  function switchUser() {
-    const next = USERS[(USERS.findIndex((u) => u.id === userId) + 1) % USERS.length];
-    setUserId(next.id);
-    setTab("inicio");
-    clearCanvas();
+  function logout() {
+    logoutRequest().catch(() => {
+      // La sesión se limpia localmente aunque la llamada al servidor falle.
+    });
+    authLogout();
   }
 
   function newConversation() {
@@ -88,11 +79,11 @@ export function CanvasHeader({
 
       <MotionButton
         type="button"
-        onClick={switchUser}
+        onClick={logout}
         whileTap={{ scale: 0.96 }}
         transition={t(spring)}
         style={{ y: settle }}
-        aria-label={`Perfil actual: ${user.name}. Cambiar de perfil`}
+        aria-label={`Sesión de ${user?.name ?? "invitado"}. Cerrar sesión`}
         sx={{
           ...TapTarget,
           position: "relative",
@@ -122,7 +113,7 @@ export function CanvasHeader({
           }}
         >
           <Typography variant="subtitle2" sx={{ lineHeight: 1, fontWeight: 800 }}>
-            {user.name.replace(/^Don\s+/i, "").charAt(0)}
+            {(user?.name ?? "?").replace(/^Don\s+/i, "").charAt(0)}
           </Typography>
         </Box>
         <Box sx={{ minWidth: 0, textAlign: "left" }}>
@@ -136,7 +127,7 @@ export function CanvasHeader({
               lineHeight: 1.15,
             }}
           >
-            {user.name}
+            {user?.name ?? ""}
           </Typography>
           <Typography
             variant="caption"
@@ -152,7 +143,7 @@ export function CanvasHeader({
             Cuenta Banorte
           </Typography>
         </Box>
-        <ChevronDown size={16} style={{ flexShrink: 0, opacity: 0.6 }} />
+        <LogOut size={16} style={{ flexShrink: 0, opacity: 0.6 }} />
       </MotionButton>
 
       <Box

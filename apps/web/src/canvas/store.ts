@@ -1,8 +1,8 @@
 import type { AgentStatus, McpActivity, Widget } from "@camaleon/shared";
 import { create } from "zustand";
 
-/** Las cuatro pestañas de la app. `inicio` y `asesor` comparten el lienzo. */
-export type Tab = "inicio" | "asesor" | "metas" | "historial";
+/** Las cinco pestañas de la app. `inicio` y `asesor` comparten el lienzo. */
+export type Tab = "inicio" | "asesor" | "metas" | "historial" | "ajustes";
 
 type CanvasState = {
   widgets: Widget[];
@@ -17,7 +17,7 @@ type CanvasState = {
   widgetTurn: Record<string, number>;
   /** Pestaña visible. Vive aquí para que cualquier pantalla pueda navegar. */
   tab: Tab;
-  /** Perfil demo activo. Lo consumen el lienzo y las pantallas de lista. */
+  /** Id del usuario logueado (sincronizado desde `useAuth` en `auth-gate.tsx`). */
   userId: string;
   /** Charla abierta en el servidor. `null` = la próxima pregunta abre una nueva. */
   conversationId: number | null;
@@ -50,7 +50,7 @@ export const useCanvas = create<CanvasState>((set) => ({
   turn: 0,
   widgetTurn: {},
   tab: "inicio",
-  userId: "karla",
+  userId: "",
   conversationId: null,
   canvasKind: "empty",
 

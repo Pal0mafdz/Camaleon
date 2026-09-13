@@ -181,6 +181,7 @@ export function Field({
   onBlur,
   placeholder,
   numeric = false,
+  type = "text",
   error,
   hint,
   inputRef,
@@ -193,6 +194,7 @@ export function Field({
   onBlur?: () => void;
   placeholder: string;
   numeric?: boolean;
+  type?: "text" | "password" | "email";
   /** Mensaje que nombra el problema. Si existe, el campo es inválido. */
   error?: string | null;
   /** Dato de apoyo bajo el campo cuando no hay error. */
@@ -219,6 +221,7 @@ export function Field({
       <InputBase
         id={id}
         inputRef={inputRef}
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
@@ -227,7 +230,7 @@ export function Field({
         inputProps={{
           inputMode: numeric ? "decimal" : "text",
           enterKeyHint,
-          autoComplete: "off",
+          autoComplete: type === "password" ? "current-password" : "off",
           maxLength,
           "aria-invalid": error ? true : undefined,
           "aria-describedby": message ? messageId : undefined,

@@ -3,6 +3,7 @@ import { useCanvas } from "../canvas/store";
 import { AnimatePresence, MotionBox, springSoft, useMotionPrefs } from "../canvas/widgets/shell";
 import { HistorialScreen } from "../screens/historial-screen";
 import { MetasScreen } from "../screens/metas-screen";
+import { PreferencesScreen } from "../screens/preferences-screen";
 import { TabBar } from "./tab-bar";
 
 /**
@@ -23,7 +24,7 @@ import { TabBar } from "./tab-bar";
 export function AppRoot() {
   const tab = useCanvas((s) => s.tab);
   const { t } = useMotionPrefs();
-  const covered = tab === "metas" || tab === "historial";
+  const covered = tab === "metas" || tab === "historial" || tab === "ajustes";
 
   return (
     <>
@@ -44,6 +45,7 @@ export function AppRoot() {
       <AnimatePresence mode="wait">
         {tab === "metas" && <MetasScreen key="metas" />}
         {tab === "historial" && <HistorialScreen key="historial" />}
+        {tab === "ajustes" && <PreferencesScreen key="ajustes" />}
       </AnimatePresence>
 
       <TabBar />

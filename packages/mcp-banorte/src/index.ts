@@ -9,6 +9,7 @@
  */
 import {
   analyzeSpending,
+  compareToPeers,
   createGoal,
   getBalance,
   getTransactions,
@@ -108,6 +109,29 @@ export function createBanorteServer() {
       },
     },
     async ({ userId: uid, months }) => json(await analyzeSpending(uid, months ?? 3)),
+  );
+
+  server.registerTool(
+    "compare_to_peers",
+    {
+      title: "Comparar con gente parecida",
+      description:
+        "Compara el gasto mensual del cliente por categoría contra una población sintética de miles de perfiles con edad e ingreso similares. Devuelve, por categoría, si el cliente gasta 'bajo', 'similar' o 'alto' contra esa referencia. Úsala junto a analyze_spending: convierte 'gastaste $X' en 'gastaste $X, más que la mayoría de gente como tú' — es lo que hace que el insight se sienta real y no aritmética contra sí mismo.",
+      inputSchema: {
+        userId,
+        months: z
+          .number()
+          .int()
+          .min(1)
+          .max(6)
+          .optional()
+          .describe("Meses hacia atrás a comparar. Default 3."),
+      },
+    },
+    async ({ userId: uid, months }) => {
+      const data = await compareToPeers(uid, months ?? 3);
+      return data ? json(data) : notFound(`al cliente ${uid}`);
+    },
   );
 
   server.registerTool(

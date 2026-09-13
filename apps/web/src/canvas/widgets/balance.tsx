@@ -5,7 +5,7 @@ import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { useState } from "react";
 import { useLayoutMode } from "../../app/app-shell";
 import { TOKENS } from "../../app/theme";
-import { activeUser } from "../canvas-header";
+import { useAuth } from "../../auth/store";
 import { formatMoney } from "../format";
 import { useCanvas } from "../store";
 import { AmountRow, AskPill, Expand, SectionLabel, TapHeader } from "./bits";
@@ -160,12 +160,11 @@ export function BalanceWidget({
   const [open, setOpen] = useState(false);
   const { t, step } = useMotionPrefs();
   const layout = useLayoutMode();
-  const userId = useCanvas((s) => s.userId);
   const busy = useCanvas((s) => s.status !== null);
   const toolRunning = useCanvas((s) => s.mcp.some((a) => a.status === "running"));
   const togglePanel = useCanvas((s) => s.togglePanel);
   const panelOpen = useCanvas((s) => s.panelOpen);
-  const holder = activeUser(userId).name;
+  const holder = useAuth((s) => s.user?.name) ?? "";
 
   const delta = props.delta ?? 0;
   const bars = props.bars;

@@ -2,9 +2,10 @@ import Box from "@mui/material/Box";
 import { useMotionValueEvent, useScroll } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLayoutMode } from "../app/app-shell";
+import { useAuth } from "../auth/store";
 import { ask } from "./agent";
 import { TableLight } from "./brand-band";
-import { activeUser, CanvasHeader } from "./canvas-header";
+import { CanvasHeader } from "./canvas-header";
 import { BootSkeleton, CanvasError, EmptyState, StatusPill } from "./canvas-states";
 import { CommandBar, Suggestions } from "./command-bar";
 import { McpPanel } from "./mcp-panel";
@@ -40,6 +41,7 @@ export function CanvasScreen() {
   const canvasKind = useCanvas((s) => s.canvasKind);
   const setCanvasKind = useCanvas((s) => s.setCanvasKind);
   const clearCanvas = useCanvas((s) => s.clearCanvas);
+  const userName = useAuth((s) => s.user?.name);
 
   const layout = useLayoutMode();
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +195,7 @@ export function CanvasScreen() {
       >
         {empty && !busy && (
           <Box data-span="full">
-            <EmptyState greeting={activeUser(userId).greeting} />
+            <EmptyState greeting={`Hola, ${userName ?? ""}`} />
           </Box>
         )}
         {empty && busy && (

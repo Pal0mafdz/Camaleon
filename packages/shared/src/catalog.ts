@@ -344,10 +344,18 @@ export const mapaSchema = z.object({
   id,
   title: z.string().describe("Ej: 'Japón clásico · 12 días'."),
   stops: z
-    .array(z.object({ n: z.number(), label: z.string(), sublabel: z.string().optional() }))
+    .array(
+      z.object({
+        n: z.number(),
+        label: z.string(),
+        sublabel: z.string().optional(),
+        lat: z.number().describe("Latitud real del lugar."),
+        lng: z.number().describe("Longitud real del lugar."),
+      }),
+    )
     .min(1)
     .max(5)
-    .describe("Paradas numeradas de la ruta. Ej: 1 Tokio · 5 días."),
+    .describe("Paradas numeradas de la ruta, en orden, con coordenadas reales. Ej: 1 Tokio · 5 días."),
   card: z
     .object({
       kicker: z.string().describe("Ej: 'DÍA 1 · TOKIO'."),
