@@ -21,6 +21,8 @@ type CanvasState = {
   userId: string;
   /** Charla abierta en el servidor. `null` = la próxima pregunta abre una nueva. */
   conversationId: number | null;
+  /** Qué pinta el lienzo ahora: el inicio calculado, una charla, o nada. */
+  canvasKind: "empty" | "home" | "chat";
 
   beginTurn: () => void;
   endTurn: () => void;
@@ -34,6 +36,7 @@ type CanvasState = {
   setTab: (tab: Tab) => void;
   setUserId: (userId: string) => void;
   setConversationId: (id: number | null) => void;
+  setCanvasKind: (kind: "empty" | "home" | "chat") => void;
   /** Repinta el lienzo completo desde una fuente guardada (plan o historial). */
   paintWidgets: (widgets: Widget[]) => void;
 };
@@ -49,6 +52,7 @@ export const useCanvas = create<CanvasState>((set) => ({
   tab: "inicio",
   userId: "karla",
   conversationId: null,
+  canvasKind: "empty",
 
   // La actividad MCP es de la pregunta en curso, no del historial.
   beginTurn: () => set((s) => ({ turn: s.turn + 1, mcp: [] })),
@@ -114,6 +118,7 @@ export const useCanvas = create<CanvasState>((set) => ({
       locals: {},
       widgetTurn: {},
       conversationId: null,
+      canvasKind: "empty",
     }),
 
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
@@ -124,6 +129,8 @@ export const useCanvas = create<CanvasState>((set) => ({
 
   setConversationId: (conversationId) => set({ conversationId }),
 
+  setCanvasKind: (canvasKind) => set({ canvasKind }),
+
   // Un lienzo guardado llega entero, no widget por widget: se sella como un
   // turno propio para que el `endTurn` de la siguiente pregunta lo respete.
   paintWidgets: (widgets) =>
@@ -131,6 +138,6 @@ export const useCanvas = create<CanvasState>((set) => ({
       const turn = s.turn + 1;
       const widgetTurn: Record<string, number> = {};
       for (const w of widgets) widgetTurn[w.id] = turn;
-      return { widgets, widgetTurn, turn, locals: {}, mcp: [], status: null };
+      return { widgets, widgetTurn, turn, locals: {}, mcp: [], status: null, canvasKind: "chat" };
     }),
 }));

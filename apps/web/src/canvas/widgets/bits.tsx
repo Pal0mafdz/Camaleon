@@ -2,12 +2,13 @@ import type { Tone } from "@camaleon/shared";
 import Box from "@mui/material/Box";
 import { alpha, useTheme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { TOKENS } from "../../app/theme";
 import { toneColor, toneInk } from "../format";
 import {
   AnimatePresence,
+  Meter,
   MotionBox,
   MotionButton,
   spring,
@@ -22,28 +23,73 @@ import {
  * crece EN SU SITIO y el resto del lienzo se acomoda con el mismo muelle.
  */
 
-/** Pastilla teñida por semántica. El texto usa la variante `ink`: AA sobre blanco. */
-export function TonePill({ tone, children }: { tone?: Tone; children: ReactNode }) {
+/**
+ * Pastilla teñida por semántica. El texto usa la variante `ink`: AA sobre
+ * blanco. Sobre el lingote (`dark`) el relleno es luz diluida y el texto la
+ * variante `-on-dark`.
+ */
+export function TonePill({
+  tone,
+  children,
+  dark = false,
+}: {
+  tone?: Tone;
+  children: ReactNode;
+  dark?: boolean;
+}) {
   const theme = useTheme();
   const key = tone === "neutral" ? undefined : tone;
+  const fill = toneColor(key, theme);
+  const onDark =
+    key === "good" ? TOKENS.goodOnDark : key === "bad" ? TOKENS.badOnDark : TOKENS.onDark;
 
   return (
     <Box
       sx={{
         px: 1,
         py: 0.375,
-        borderRadius: "var(--radius-pill)",
+        borderRadius: "var(--radius-xs)",
         flexShrink: 0,
-        backgroundColor: alpha(toneColor(key, theme), 0.12),
+        maxWidth: "100%",
+        backgroundColor: dark ? TOKENS.tintWhite14 : alpha(fill, 0.12),
       }}
     >
       <Typography
         variant="caption"
-        sx={{ color: toneInk(key, theme), fontWeight: 700, whiteSpace: "nowrap" }}
+        sx={{
+          display: "block",
+          color: dark ? onDark : toneInk(key, theme),
+          fontWeight: 700,
+          overflowWrap: "anywhere",
+        }}
       >
         {children}
       </Typography>
     </Box>
+  );
+}
+
+/** Chevron que gira al abrir. La afordancia de toda cabecera expandible. */
+export function Disclosure({ open, dark = false }: { open: boolean; dark?: boolean }) {
+  const { t } = useMotionPrefs();
+  return (
+    <MotionBox
+      aria-hidden
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={t(spring)}
+      sx={{
+        width: 28,
+        height: 28,
+        borderRadius: "var(--radius-xs)",
+        display: "grid",
+        placeItems: "center",
+        flexShrink: 0,
+        color: dark ? TOKENS.onDark : "text.secondary",
+        backgroundColor: dark ? TOKENS.tintWhite14 : TOKENS.sunken,
+      }}
+    >
+      <ChevronDown size={15} strokeWidth={2.4} />
+    </MotionBox>
   );
 }
 
@@ -53,16 +99,24 @@ export function TonePill({ tone, children }: { tone?: Tone; children: ReactNode 
  * Es un `<button>` de verdad (no un div con `onTap`) para que el teclado y los
  * lectores de pantalla también puedan abrirla. Por eso NADA interactivo puede
  * vivir dentro: los botones del detalle van fuera, en la zona expandida.
+ *
+ * `layout="position"`: cuando el detalle empuja, la cabecera se queda quieta
+ * en vez de estirarse con el contenedor. `hint` pinta el chevron a la derecha.
  */
 export function TapHeader({
   onToggle,
   expanded,
   children,
+  hint = false,
+  dark = false,
   sx,
 }: {
   onToggle?: () => void;
   expanded?: boolean;
   children: ReactNode;
+  /** Muestra el chevron de apertura alineado a la derecha. */
+  hint?: boolean;
+  dark?: boolean;
   sx?: object;
 }) {
   const { t } = useMotionPrefs();
@@ -72,12 +126,28 @@ export function TapHeader({
     <MotionButton
       type="button"
       aria-expanded={expanded}
+      layout="position"
       whileTap={{ scale: 0.985 }}
       transition={t(spring)}
       onClick={onToggle}
-      sx={{ display: "block", width: "100%", textAlign: "left", ...sx }}
+      sx={{
+        display: hint ? "flex" : "block",
+        alignItems: hint ? "flex-start" : undefined,
+        gap: hint ? 1.5 : undefined,
+        width: "100%",
+        textAlign: "left",
+        borderRadius: "var(--radius-m)",
+        ...sx,
+      }}
     >
-      {children}
+      {hint ? (
+        <>
+          <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
+          <Disclosure open={Boolean(expanded)} dark={dark} />
+        </>
+      ) : (
+        children
+      )}
     </MotionButton>
   );
 }
@@ -87,10 +157,12 @@ export function TapHeader({
  *
  * Es la única animación de la app sobre una propiedad de layout (`height`):
  * `auto` no tiene equivalente en `transform` y la tarjeta TIENE que empujar el
- * lienzo. Deuda registrada en DESIGN.md §8.
+ * lienzo. Deuda registrada en DESIGN.md §8. El contenido entra un poco después
+ * de que el hueco empiece a abrirse y sale antes de que se cierre: nunca se ve
+ * texto recortado a la mitad.
  */
 export function Expand({ open, children }: { open: boolean; children: ReactNode }) {
-  const { t } = useMotionPrefs();
+  const { t, reduced } = useMotionPrefs();
 
   return (
     <AnimatePresence initial={false}>
@@ -100,10 +172,21 @@ export function Expand({ open, children }: { open: boolean; children: ReactNode 
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          transition={t(springSoft)}
+          transition={
+            reduced
+              ? { duration: 0 }
+              : { height: springSoft, opacity: { duration: 0.2, ease: "easeOut" } }
+          }
           sx={{ overflow: "hidden" }}
         >
-          {children}
+          <MotionBox
+            initial={{ y: -8 }}
+            animate={{ y: 0 }}
+            exit={{ y: -6 }}
+            transition={t(springSoft)}
+          >
+            {children}
+          </MotionBox>
         </MotionBox>
       )}
     </AnimatePresence>
@@ -122,19 +205,26 @@ export function AskPill({
   question,
   onAsk,
   variant = "red",
+  size = "md",
 }: {
   label: string;
   question: string;
   onAsk?: (q: string) => void;
-  variant?: "red" | "ink";
+  variant?: "red" | "ink" | "paper";
+  /** `sm` para pastillas en fila (chips de seguimiento); sigue midiendo 44px. */
+  size?: "md" | "sm";
 }) {
   const { t } = useMotionPrefs();
   if (!onAsk) return null;
 
+  const bg = variant === "red" ? TOKENS.red : variant === "ink" ? TOKENS.ink : TOKENS.card;
+  const fg = variant === "paper" ? TOKENS.ink : TOKENS.onDark;
+  const disc = variant === "paper" ? TOKENS.sunken : TOKENS.tintWhite14;
+
   return (
     <MotionButton
       type="button"
-      whileTap={{ scale: 0.975 }}
+      whileTap={{ scale: 0.97 }}
       transition={t(spring)}
       onClick={() => onAsk(question)}
       initial="rest"
@@ -145,17 +235,26 @@ export function AskPill({
         display: "flex",
         alignItems: "center",
         gap: 1,
-        width: "100%",
+        width: size === "md" ? "100%" : "auto",
         minHeight: "var(--tap-min)",
-        pl: 2.5,
+        pl: size === "md" ? 2 : 1.5,
         pr: 0.75,
         py: 0.75,
-        borderRadius: "var(--radius-pill)",
-        backgroundColor: variant === "red" ? TOKENS.red : TOKENS.ink,
-        boxShadow: TOKENS.elev1,
+        // Tecla de tarjeta, no píldora: mismo radio que todo control.
+        borderRadius: "var(--radius-s)",
+        backgroundColor: bg,
+        boxShadow:
+          variant === "paper"
+            ? `${TOKENS.glossLight}, ${TOKENS.hairline}, ${TOKENS.elev1}`
+            : `${TOKENS.glossInk}, ${TOKENS.elev1}`,
+        transition: "background-color var(--dur-micro) var(--ease-ios)",
+        "&:hover": variant === "red" ? { backgroundColor: TOKENS.redDeep } : undefined,
       }}
     >
-      <Typography variant="button" sx={{ color: TOKENS.onDark, flex: 1, textAlign: "left" }}>
+      <Typography
+        variant="button"
+        sx={{ color: fg, flex: 1, textAlign: "left", minWidth: 0, overflowWrap: "anywhere" }}
+      >
         {label}
       </Typography>
       <MotionBox
@@ -164,17 +263,75 @@ export function AskPill({
         sx={{
           width: 32,
           height: 32,
-          borderRadius: "var(--radius-pill)",
+          borderRadius: "var(--radius-xs)",
           display: "grid",
           placeItems: "center",
           flexShrink: 0,
-          color: TOKENS.onDark,
-          backgroundColor: TOKENS.tintWhite14,
+          color: fg,
+          backgroundColor: disc,
         }}
       >
         <ArrowRight size={16} strokeWidth={2.4} />
       </MotionBox>
     </MotionButton>
+  );
+}
+
+/**
+ * Fila `rótulo … valor` con su barra debajo. Lo que comparten los factores
+ * de `health`, las categorías del donut, las metas de `progress` y las filas
+ * de `alert`: una sola pieza, un solo muelle, el mismo carril de arena.
+ */
+export function Bar({
+  label,
+  value,
+  pct,
+  color,
+  height = 6,
+  delay = 0,
+  dark = false,
+}: {
+  label: string;
+  /** Texto ya formateado (monto, porcentaje). */
+  value?: string;
+  /** 0–100. */
+  pct: number;
+  color: string;
+  height?: number;
+  delay?: number;
+  dark?: boolean;
+}) {
+  return (
+    <Box>
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mb: 0.75 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontWeight: 600,
+            color: dark ? TOKENS.onDark : "text.primary",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {label}
+        </Typography>
+        {value && (
+          <Typography
+            variant="body2"
+            sx={{
+              flexShrink: 0,
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
+              color: dark ? TOKENS.onDarkDim : "text.secondary",
+            }}
+          >
+            {value}
+          </Typography>
+        )}
+      </Box>
+      <Meter pct={pct} color={color} height={height} delay={delay} dark={dark} />
+    </Box>
   );
 }
 
@@ -278,7 +435,7 @@ export function Milestones({
               top: 5,
               width: 10,
               height: 10,
-              borderRadius: "var(--radius-pill)",
+              borderRadius: "var(--radius-2xs)",
               backgroundColor: step.done ? TOKENS.good : dotColor,
               // El halo recorta el riel; va del color de la tarjeta, no del lienzo.
               boxShadow: `0 0 0 4px ${TOKENS.card}`,
@@ -303,16 +460,32 @@ export function Milestones({
 }
 
 /** Nota destacada al pie de un detalle, teñida por semántica. */
-export function Note({ tone, children }: { tone: "good" | "warn"; children: ReactNode }) {
+export function Note({
+  tone,
+  children,
+}: {
+  tone: "good" | "warn" | "bad" | "neutral";
+  children: ReactNode;
+}) {
+  const bg =
+    tone === "good"
+      ? TOKENS.tintGood12
+      : tone === "warn"
+        ? TOKENS.tintWarn10
+        : tone === "bad"
+          ? TOKENS.tintBad8
+          : TOKENS.sunken;
+  const fg =
+    tone === "good"
+      ? TOKENS.goodInk
+      : tone === "warn"
+        ? TOKENS.warnInk
+        : tone === "bad"
+          ? TOKENS.badInk
+          : TOKENS.inkDim;
   return (
-    <Box
-      sx={{
-        p: 1.75,
-        borderRadius: "var(--radius-m)",
-        backgroundColor: tone === "good" ? TOKENS.tintGood12 : TOKENS.tintWarn10,
-      }}
-    >
-      <Typography variant="body2" sx={{ color: tone === "good" ? TOKENS.goodInk : TOKENS.warnInk }}>
+    <Box sx={{ p: 1.75, borderRadius: "var(--radius-m)", backgroundColor: bg }}>
+      <Typography variant="body2" sx={{ color: fg }}>
         {children}
       </Typography>
     </Box>

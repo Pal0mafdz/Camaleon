@@ -1,25 +1,50 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Camaleón × Banorte — capa de tokens
+   Camaleón × Banorte — capa de tokens · dirección "Tarjeta"
    Fuente de verdad: DESIGN.md (raíz del repo).
    Ningún hex ni rgba() vive fuera de este archivo y de app/theme.ts.
+
+   El mundo: la tarjeta Banorte física. Mesa laminada clara; tarjetas blancas
+   de radio corto (proporción ISO 7810) con hairline y laca; UNA tarjeta roja
+   —el saldo— con cifra en relieve, chip y holograma. El agente reparte.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
   /* ── Marca ──────────────────────────────────────────────────────────── */
-  --brand-red: #ef2945; /* PMS Red 032 C */
-  --brand-red-deep: #c4102a;
-  --brand-brown: #684d3d; /* PMS 7532 C */
+  --brand-red: #eb0029; /* rojo institucional Banorte */
+  --brand-red-deep: #b8001f; /* hover del CTA, texto rojo pequeño (AA sobre blanco) */
+  --brand-garnet: #7a0a1c; /* extremo de la tarjeta roja y de la mesa de escritorio */
+  --brand-gold: #d4a64a; /* chip: metal de contacto */
+  --brand-gold-deep: #9c7a3c; /* chip: sombra del metal; segundo color de datos */
+
+  /* ── Mesa laminada (3 pasos) ────────────────────────────────────────────
+     Mesa → hundido → pozo. Separa la mesa, las filas y los carriles DENTRO
+     de una tarjeta blanca sin recurrir a bordes. */
+  --table-1: #edebe8; /* la mesa: fondo del lienzo */
+  --table-2: #e3e0dc; /* hundido: filas, huecos de esqueleto, botón secundario */
+  --table-3: #d8d4cf; /* pozo: carriles, campos, disco de enviar en reposo */
 
   /* ── Superficies ────────────────────────────────────────────────────── */
-  --surface-canvas: #f4f1ee; /* arena cálida */
-  --surface-sunken: #ebe5e0;
+  --surface-canvas: var(--table-1);
+  --surface-sunken: var(--table-2);
+  --surface-well: var(--table-3);
   --surface-card: #ffffff;
-  --surface-floating: rgba(255, 255, 255, 0.86);
-  --surface-floating-solid: rgba(255, 255, 255, 0.94);
-  --surface-ink: #241c17;
-  --surface-ink-raised: #33291f;
-  --surface-map: #e8ede4;
-  --canvas-veil: rgba(244, 241, 238, 0.82);
+  --surface-card-panel: #f7f6f4; /* panel de firma: franja interior de una tarjeta blanca */
+  --surface-floating: rgba(255, 255, 255, 0.9);
+  --surface-floating-solid: rgba(255, 255, 255, 0.96);
+  --surface-ink: #1b1614;
+  --surface-ink-raised: #2a2320;
+  --surface-ink-deep: #120e0c;
+  --surface-map: #e6ebe3;
+  --canvas-veil: rgba(237, 235, 232, 0.86);
+
+  /* La tarjeta roja: rojo Banorte arriba‑izquierda, granate abajo‑derecha.
+     Todo el texto que va sobre ella es blanco pleno (AA sobre el rojo vivo). */
+  --surface-brand: linear-gradient(
+    155deg,
+    var(--brand-red) 0%,
+    #c4001f 42%,
+    var(--brand-garnet) 100%
+  );
 
   /* Velo único para toda superficie con fotografía. */
   --scrim-media: linear-gradient(
@@ -30,30 +55,32 @@
   );
 
   /* ── Tinta ──────────────────────────────────────────────────────────── */
-  --ink: #241c17;
-  --ink-dim: #6e625a;
-  --ink-faint: #a79c94;
+  --ink: #1b1614;
+  --ink-dim: #5b534e;
+  --ink-faint: #6e655f; /* AA (4.6:1) sobre la mesa y sobre la tarjeta blanca */
   --ink-on-dark: #ffffff;
-  --ink-on-dark-dim: rgba(255, 255, 255, 0.62);
-  --ink-on-dark-faint: rgba(255, 255, 255, 0.42);
+  /* Sobre la tarjeta roja la jerarquía la hace el peso y el tamaño, no el
+     alfa: por debajo de 0.86 el blanco pierde AA sobre el rojo vivo. */
+  --ink-on-dark-dim: rgba(255, 255, 255, 0.92);
+  --ink-on-dark-faint: rgba(255, 255, 255, 0.86);
 
   /* ── Semántica ──────────────────────────────────────────────────────── */
   --good: #0e9f6e;
   --good-ink: #076b4c;
-  --good-on-dark: #3ddca5;
+  --good-on-dark: #8ff0c6;
   --warn: #c2610a;
   --warn-ink: #8f4708;
   --bad: #d92d20;
   --bad-ink: #b42318;
-  --bad-on-dark: #ff8a9b;
+  --bad-on-dark: #ffc2c9;
 
   /* ── Rampa de datos ─────────────────────────────────────────────────── */
-  --viz-1: #ef2945;
-  --viz-2: #684d3d;
-  --viz-3: #c97c10;
-  --viz-4: #2d4e8a;
-  --viz-5: #1f6f5c;
-  --viz-6: #b4527f;
+  --viz-1: #eb0029;
+  --viz-2: #9c7a3c;
+  --viz-3: #2d4e8a;
+  --viz-4: #1f6f5c;
+  --viz-5: #b4527f;
+  --viz-6: #c97c10;
   --viz-7: #8c7f76;
 
   /* ── Servidores MCP ─────────────────────────────────────────────────── */
@@ -61,39 +88,57 @@
   --srv-research: #2d4e8a;
   --srv-research-on-dark: #9db8e8;
 
-  /* ── Tintes (sustituyen los rgba() sueltos) ─────────────────────────── */
-  --tint-ink-3: rgba(36, 28, 23, 0.03);
-  --tint-ink-5: rgba(36, 28, 23, 0.05);
-  --tint-ink-8: rgba(36, 28, 23, 0.08);
-  --tint-ink-12: rgba(36, 28, 23, 0.12);
-  --tint-ink-20: rgba(36, 28, 23, 0.2);
-  --tint-ink-32: rgba(36, 28, 23, 0.32);
-  --tint-red-8: rgba(239, 41, 69, 0.08);
-  --tint-red-14: rgba(239, 41, 69, 0.14);
-  --tint-red-32: rgba(239, 41, 69, 0.32);
+  /* ── Tintes ─────────────────────────────────────────────────────────── */
+  --tint-ink-3: rgba(27, 22, 20, 0.03);
+  --tint-ink-5: rgba(27, 22, 20, 0.06);
+  --tint-ink-8: rgba(27, 22, 20, 0.08);
+  --tint-ink-12: rgba(27, 22, 20, 0.12);
+  --tint-ink-20: rgba(27, 22, 20, 0.2);
+  --tint-ink-32: rgba(27, 22, 20, 0.36);
+  --tint-red-8: rgba(235, 0, 41, 0.08);
+  --tint-red-14: rgba(235, 0, 41, 0.14);
+  --tint-red-32: rgba(235, 0, 41, 0.32);
   --tint-good-12: rgba(14, 159, 110, 0.12);
   --tint-warn-10: rgba(194, 97, 10, 0.1);
   --tint-bad-8: rgba(217, 45, 32, 0.08);
-  --tint-white-8: rgba(255, 255, 255, 0.08);
-  --tint-white-14: rgba(255, 255, 255, 0.14);
+  --tint-garnet-30: rgba(122, 10, 28, 0.3);
+  --tint-white-8: rgba(255, 255, 255, 0.1);
+  --tint-white-14: rgba(255, 255, 255, 0.16);
+  --tint-white-24: rgba(255, 255, 255, 0.26);
+  --tint-white-55: rgba(255, 255, 255, 0.6);
 
-  /* ── Radios ─────────────────────────────────────────────────────────── */
-  --radius-xs: 10px;
-  --radius-s: 14px;
-  --radius-m: 18px;
-  --radius-l: 24px;
-  --radius-xl: 32px;
-  --radius-pill: 999px;
+  /* ── Radios ─────────────────────────────────────────────────────────────
+     Una tarjeta ISO 7810 mide 85.6 × 54 mm con esquinas de 3.18 mm: el radio
+     es ~3.7 % del ancho. A 343px eso son 12px. Nada es una píldora salvo los
+     carriles finos (Meter) y los avatares. */
+  --radius-2xs: 3px;
+  --radius-xs: 6px;
+  --radius-s: 8px; /* controles: botones, chips, campos */
+  --radius-m: 10px; /* paneles interiores de una tarjeta */
+  --radius-l: 12px; /* toda tarjeta */
+  --radius-xl: 18px; /* la hoja de la app en escritorio (tarjeta de 480px) */
+  /* En este mundo nada es una cápsula: el radio "píldora" del catálogo se
+     resuelve al radio de control. Un círculo de verdad usa 50 %. */
+  --radius-pill: var(--radius-s);
 
-  /* ── Profundidad ────────────────────────────────────────────────────── */
+  /* ── Profundidad ───────────────────────────────────────────────────────
+     La tarjeta descansa sobre la mesa: sombra de contacto + sombra ambiental,
+     ambas con desplazamiento y desenfoque. La roja proyecta sombra granate. */
   --elev-hairline: inset 0 0 0 1px var(--tint-ink-5);
-  --elev-1: 0 1px 2px -1px rgba(36, 28, 23, 0.1), 0 8px 20px -10px rgba(36, 28, 23, 0.16);
-  --elev-2: 0 2px 4px -2px rgba(36, 28, 23, 0.1), 0 16px 36px -16px rgba(36, 28, 23, 0.22);
-  --elev-3: 0 4px 10px -4px rgba(36, 28, 23, 0.12), 0 28px 60px -24px rgba(36, 28, 23, 0.3);
-  --elev-ink: 0 2px 8px -3px rgba(36, 28, 23, 0.34), 0 26px 54px -22px rgba(36, 28, 23, 0.46);
-  --elev-pin: 0 2px 8px -1px rgba(196, 16, 42, 0.34);
-  --gloss-light: inset 0 1px 0 rgba(255, 255, 255, 0.62);
-  --gloss-ink: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  --elev-1: 0 1px 2px rgba(27, 22, 20, 0.06), 0 10px 24px -12px rgba(27, 22, 20, 0.2);
+  --elev-2: 0 2px 4px rgba(27, 22, 20, 0.06), 0 16px 36px -14px rgba(27, 22, 20, 0.26);
+  --elev-3: 0 4px 10px -4px rgba(27, 22, 20, 0.12), 0 26px 60px -22px rgba(27, 22, 20, 0.34);
+  --elev-ink: 0 2px 6px -2px rgba(122, 10, 28, 0.38), 0 26px 50px -20px rgba(122, 10, 28, 0.5);
+  /* La tarjeta roja en el aire, recién repartida: misma estructura (dos
+     sombras) que --elev-ink para que motion pueda interpolar entre ambas. */
+  --elev-ink-air:
+    0 20px 34px -12px rgba(122, 10, 28, 0.24), 0 64px 96px -30px rgba(122, 10, 28, 0.38);
+  --elev-pin: 0 2px 8px -1px rgba(184, 0, 31, 0.36);
+  /* La hoja de la app sobre la mesa granate del escritorio. */
+  --elev-sheet: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
+  /* Canto laminado: luz arriba, sombra mínima abajo. */
+  --gloss-light: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --gloss-ink: inset 0 1px 0 rgba(255, 255, 255, 0.24);
 
   /* ── Movimiento ─────────────────────────────────────────────────────── */
   --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
@@ -101,31 +146,37 @@
   --dur-micro: 120ms;
   --dur-standard: 240ms;
   --dur-emphasis: 480ms;
+  --stagger: 40ms;
+  --stagger-window: 160ms;
+  /* Posición del scroll del lienzo (px). La escribe CanvasScreen; la leen la
+     laca y el holograma para moverse con el dedo sin re-render. */
+  --scroll-y: 0;
 
   /* ── Interacción ────────────────────────────────────────────────────── */
   --tap-min: 44px;
   --focus-ring: 0 0 0 2px var(--surface-card), 0 0 0 4px var(--tint-red-32);
-  --focus-ring-ink: 0 0 0 2px var(--surface-ink), 0 0 0 4px var(--tint-red-32);
+  --focus-ring-ink: 0 0 0 2px var(--brand-garnet), 0 0 0 4px rgba(255, 255, 255, 0.55);
 
-  /* ── Tipografía ─────────────────────────────────────────────────────── */
-  --font-ui: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* ── Tipografía ─────────────────────────────────────────────────────────
+     Montserrat: pariente libre de Gotham, la fuente de Banorte. Cifras
+     tabulares siempre. */
+  --font-ui: "Montserrat", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --type-hero: 76px;
+  --type-hero: 68px;
+  /* Cifra en relieve de la tarjeta roja: crece con el ancho y nunca rompe
+     $1,234,567.89 en 375px. */
+  --type-ingot: clamp(34px, 9.8vw, 44px);
+  --type-cover: 30px;
 
   /* ── Shell ──────────────────────────────────────────────────────────── */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  /* Aire que el lienzo reserva bajo el último widget para que nunca quede
-     atrapado detrás de la command bar flotante. */
-  --dock-clearance: 108px;
-  /* Alto de la barra de pestañas, sin contar la safe area de abajo. */
+  --dock-clearance: 132px;
   --tab-bar-h: 60px;
-  /* Cuánto sube todo lo anclado al pulgar (command bar, sugerencias, velo).
-     El shell lo pone en `--tab-bar-h` cuando la barra de pestañas existe. */
+  --command-bar-h: 56px;
   --dock-offset: 0px;
-  /* Alto del header flotante: 44px de objetivo táctil + 12px arriba y abajo. */
   --header-h: calc(var(--safe-top) + 68px);
   --gutter: 16px;
 }
@@ -149,9 +200,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
-  /* El lienzo es una app, no un documento: el texto no se selecciona por
-     accidente al arrastrar una tarjeta. Los campos de entrada se reactivan. */
   -webkit-tap-highlight-color: transparent;
+  caret-color: var(--brand-red);
+  accent-color: var(--brand-red);
+  font-feature-settings: "tnum" 1;
 }
 
 input,
@@ -159,13 +211,62 @@ textarea {
   user-select: text;
 }
 
-/* ── Foco visible ──────────────────────────────────────────────────────────
-   `BareButton` elimina el outline nativo, así que el anillo tiene que ser
-   global y obligatorio: sin esto la app es inusable con teclado. */
+::placeholder {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+
+a {
+  color: var(--brand-red-deep);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+}
+
+/* ── Superficies del navegador ───────────────────────────────────────────── */
+::selection {
+  background: var(--tint-red-14);
+  color: var(--ink);
+}
+
+.on-ink ::selection,
+.on-ink::selection {
+  background: var(--tint-white-24);
+  color: var(--ink-on-dark);
+}
+.on-ink {
+  caret-color: var(--ink-on-dark);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tint-ink-20) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--tint-ink-20);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+.on-ink * {
+  scrollbar-color: var(--tint-white-24) transparent;
+}
+.on-ink *::-webkit-scrollbar-thumb {
+  background: var(--tint-white-24);
+}
+
+/* ── Foco visible ────────────────────────────────────────────────────────── */
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
   border-radius: var(--radius-s);
+  transition: box-shadow var(--dur-micro) var(--ease-ios);
 }
 
 button:focus-visible,
@@ -174,29 +275,150 @@ button:focus-visible,
   z-index: 1;
 }
 
-/* ── Superficie de tarjeta ─────────────────────────────────────────────────
-   Antes esto era "liquid glass": un `backdrop-filter` sobre CADA tarjeta,
-   dentro del scroller. Sobre fondo claro no aportaba nada visualmente y
-   obligaba a la GPU a repintar el desenfoque en cada frame de scroll.
-   Ahora es papel opaco elevado por dos sombras (contacto + ambiental) y un
-   anillo hairline. El nombre se conserva porque lo consumen ~15 componentes. */
+.on-ink :focus-visible {
+  box-shadow: var(--focus-ring-ink);
+}
+
+/* ── Tarjeta blanca laminada ────────────────────────────────────────────────
+   Toda tarjeta del catálogo: PVC blanco con canto luminoso arriba, hairline
+   de contacto y dos sombras. Nunca `backdrop-filter` aquí: vive dentro del
+   scroller. */
+.paper,
 .liquid-glass {
   background: var(--surface-card);
-  box-shadow: var(--elev-hairline), var(--elev-1);
+  box-shadow: var(--gloss-light), var(--elev-hairline), var(--elev-1);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow var(--dur-standard) var(--ease-ios);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .paper:has(> button, button[aria-expanded]):hover,
+  .paper[data-tappable="true"]:hover {
+    box-shadow: var(--gloss-light), var(--elev-hairline), var(--elev-2);
+  }
+}
+
+/* ── La tarjeta roja ─────────────────────────────────────────────────────────
+   Rojo Banorte → granate, canto laminado. Su sombra la anima motion (en el
+   aire → apoyada), por eso aquí solo va el material. */
+.ingot,
+.card-brand {
+  background: var(--surface-brand);
+  color: var(--ink-on-dark);
   position: relative;
   overflow: hidden;
 }
+/* Sobrevive como envoltura sin material: la tarjeta física no tiene núcleo. */
+.ingot-core {
+  background: transparent;
+}
 
-/* Superficies flotantes FIJAS (header, command bar, hoja MCP). Son las únicas
-   que pueden permitirse desenfoque: no viven dentro del contenedor que scrollea. */
+/* Laca: una banda diagonal de luz que cruza la tarjeta y se desplaza con el
+   scroll (--scroll-y la escribe el lienzo). Vive entre el fondo y el
+   contenido: contexto de apilamiento propio + z-index negativo. */
+.lacquer {
+  isolation: isolate;
+}
+.lacquer::before {
+  content: "";
+  position: absolute;
+  inset: -40% -60%;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(
+    112deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.14) 47%,
+    rgba(255, 255, 255, 0.26) 50%,
+    rgba(255, 255, 255, 0.14) 53%,
+    transparent 62%
+  );
+  transform: translateX(calc(var(--scroll-y) * -0.35px));
+  will-change: transform;
+}
+.paper.lacquer::before {
+  background: linear-gradient(
+    112deg,
+    transparent 38%,
+    rgba(27, 22, 20, 0.035) 46%,
+    rgba(27, 22, 20, 0.07) 50%,
+    rgba(27, 22, 20, 0.035) 54%,
+    transparent 62%
+  );
+}
+
+/* Cifra en relieve: los números de una tarjeta están grabados. El relleno
+   lleva un degradado vertical mínimo (blanco → rosa de la propia tarjeta) para
+   que la luz rasante de arriba tenga dónde agarrarse; debajo, sombra corta y
+   densa, y una sombra larga suave que separa el número del PVC. */
+.embossed {
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 55%, #ffd6dd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(60, 0, 12, 0.7)) drop-shadow(0 2px 1px rgba(60, 0, 12, 0.5))
+    drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.5)) drop-shadow(0 6px 12px rgba(60, 0, 12, 0.3));
+}
+
+/* Holograma: lámina de seguridad. Difracción (cónico), guilloche (dos
+   tramas de microlíneas cruzadas) y un brillo especular; el tono gira con el
+   scroll y una banda de luz lo barre al repartir o mientras el agente trabaja. */
+.holo {
+  background:
+    radial-gradient(60% 80% at 30% 20%, rgba(255, 255, 255, 0.85) 0%, transparent 60%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 5px),
+    conic-gradient(from 200deg at 45% 55%, #ff8fae, #ffd166, #7ef0c3, #6fc3ff, #c79bff, #ff8fae);
+  filter: hue-rotate(calc(var(--scroll-y) * 0.5deg)) saturate(1.25) contrast(1.05);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    inset 0 -8px 12px rgba(0, 0, 0, 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Superficies flotantes FIJAS (command bar, hoja MCP, sugerencias). */
+.paper-floating,
 .liquid-glass-solid {
   background: var(--surface-floating-solid);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: var(--elev-hairline), var(--elev-3);
+  box-shadow: var(--gloss-light), var(--elev-hairline), var(--elev-3);
 }
 
-/* ── Scroll ────────────────────────────────────────────────────────────── */
+/* Barra de pestañas: laminado que se apoya en el borde de la hoja. */
+.dock-bar {
+  background: var(--surface-floating);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: inset 0 1px 0 var(--tint-ink-8);
+}
+
+/* Velo del header: aparece con el scroll (motion anima su opacidad). */
+.canvas-veil {
+  background: var(--canvas-veil);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: inset 0 -1px 0 var(--tint-ink-8);
+}
+
+/* Pozo dentro de una tarjeta. */
+.well {
+  background: var(--surface-well);
+  border-radius: var(--radius-m);
+}
+
+/* Anillo de trabajo (botón detener): arco de luz de 2px que motion gira. */
+.spin-ring {
+  background: conic-gradient(from 0deg, transparent 0 62%, var(--tint-white-55) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), var(--ink) 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), var(--ink) 0);
+}
+.spin-ring.on-light {
+  background: conic-gradient(from 0deg, transparent 0 62%, var(--brand-red) 100%);
+}
+
+/* ── Scroll ──────────────────────────────────────────────────────────────── */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -205,8 +427,6 @@ button:focus-visible,
   display: none;
 }
 
-/* El hijo scrolleable de un grid/flex se niega a encoger sin esto y empuja
-   las filas fijas fuera de pantalla en vez de hacer overflow. */
 .scroll-body {
   min-block-size: 0;
   overflow-y: auto;
@@ -214,36 +434,69 @@ button:focus-visible,
   -webkit-overflow-scrolling: touch;
 }
 
-/* Disuelve el contenido bajo la command bar en vez de cortarlo en seco. */
 .dock-scrim {
   pointer-events: none;
+  --dock-solid: calc(
+    var(--dock-offset) +
+    var(--safe-bottom) +
+    var(--gutter) +
+    var(--command-bar-h) *
+    0.55
+  );
   background: linear-gradient(
     to top,
-    var(--surface-canvas) 22%,
-    color-mix(in srgb, var(--surface-canvas) 72%, transparent) 58%,
+    var(--surface-canvas) 0,
+    var(--surface-canvas) var(--dock-solid),
+    color-mix(in srgb, var(--surface-canvas) 78%, transparent) calc(var(--dock-solid) + 28px),
+    color-mix(in srgb, var(--surface-canvas) 30%, transparent) calc(var(--dock-solid) + 60px),
     transparent 100%
   );
 }
 
-/* ── Tipografía display recortada (va sobre fotografía) ────────────────── */
+/* ── Tipografía display ──────────────────────────────────────────────────── */
 .clip-display {
   font-size: var(--type-hero);
   font-weight: 800;
-  letter-spacing: -0.05em;
-  line-height: 0.92;
+  letter-spacing: -0.04em;
+  line-height: 0.94;
   white-space: nowrap;
 }
 
-/* ── Movimiento reducido ───────────────────────────────────────────────────
-   Los muelles de `motion` se neutralizan en JS (useMotionPrefs). Esto cubre
-   lo que se anima por CSS y cualquier bucle que se escape. */
+.cover-title {
+  font-size: var(--type-cover);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
+  overflow-wrap: anywhere;
+}
+
+.ingot-figure {
+  font-size: var(--type-ingot);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Movimiento reducido ─────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: la única forma de vencer estilos inline de motion */
     animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: idem */
     animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: idem */
     transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: idem */
     scroll-behavior: auto !important;
+  }
+  .lacquer::before,
+  .holo {
+    /* biome-ignore lint/complexity/noImportantStyles: la laca no sigue al scroll */
+    transform: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: idem */
+    filter: none !important;
   }
 }

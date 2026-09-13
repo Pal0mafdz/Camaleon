@@ -32,6 +32,7 @@ export function TabBar() {
     <Box
       component="nav"
       aria-label="Secciones"
+      className="dock-bar"
       sx={{
         position: "absolute",
         left: 0,
@@ -44,10 +45,6 @@ export function TabBar() {
         pr: "var(--safe-right)",
         display: "flex",
         alignItems: "stretch",
-        backgroundColor: TOKENS.floating,
-        backdropFilter: "blur(20px) saturate(180%)",
-        WebkitBackdropFilter: "blur(20px) saturate(180%)",
-        boxShadow: `inset 0 1px 0 ${TOKENS.tintInk8}`,
       }}
     >
       {TABS.map(({ id, label, Icon }) => (
@@ -93,29 +90,46 @@ function TabItem({
         alignItems: "center",
         justifyContent: "center",
         gap: 0.25,
+        borderRadius: "var(--radius-s)",
         transition: "color var(--dur-standard) var(--ease-ios)",
         color: active ? "primary.main" : "text.disabled",
       }}
     >
-      {/* El halo viaja entre pestañas en vez de aparecer y desaparecer: dice de
-          dónde vienes, no solo dónde estás. */}
+      {/* La franja roja viaja entre pestañas en vez de aparecer y desaparecer:
+          dice de dónde vienes, no solo dónde estás. Un solo `layoutId`. */}
       {active && (
         <MotionBox
-          layoutId="tab-halo"
+          layoutId="tab-stripe"
           transition={t(spring)}
           aria-hidden
           sx={{
             position: "absolute",
-            top: 6,
-            width: 52,
-            height: 30,
-            borderRadius: "var(--radius-pill)",
-            backgroundColor: TOKENS.tintRed8,
+            top: 0,
+            width: 36,
+            height: 3,
+            borderRadius: "0 0 var(--radius-2xs) var(--radius-2xs)",
+            backgroundColor: TOKENS.red,
+            boxShadow: `0 1px 4px ${TOKENS.tintRed32}`,
           }}
         />
       )}
-      <Box sx={{ display: "grid", placeItems: "center", height: 22, zIndex: 1 }}>{icon}</Box>
-      <Typography variant="caption" sx={{ fontWeight: active ? 700 : 600 }}>
+      <MotionBox
+        animate={{ y: active ? -1 : 0, scale: active ? 1.04 : 1 }}
+        transition={t(spring)}
+        sx={{ display: "grid", placeItems: "center", height: 22, zIndex: 1 }}
+      >
+        {icon}
+      </MotionBox>
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: active ? 700 : 600,
+          zIndex: 1,
+          position: "relative",
+          // El rojo vivo no pasa AA a 12px sobre blanco; el texto usa el profundo.
+          color: active ? TOKENS.redDeep : undefined,
+        }}
+      >
         {label}
       </Typography>
     </MotionButton>

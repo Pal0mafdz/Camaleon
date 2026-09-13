@@ -2,7 +2,10 @@
  * El cerebro del agente. Este texto es, literalmente, el producto:
  * define cuándo el lienzo se ve brillante y cuándo se ve genérico.
  */
-export type PriorTurn = { question: string; widgets: { id: string; type: string; title?: string }[] };
+export type PriorTurn = {
+  question: string;
+  widgets: { id: string; type: string; title?: string }[];
+};
 
 export function systemPrompt(
   userId: string,
@@ -21,7 +24,8 @@ export function systemPrompt(
           .map(
             (t, i) =>
               `${i + 1}. Usuario: "${t.question}" → pintaste: ${
-                t.widgets.map((w) => `${w.type}${w.title ? ` "${w.title}"` : ""}`).join(", ") || "nada"
+                t.widgets.map((w) => `${w.type}${w.title ? ` "${w.title}"` : ""}`).join(", ") ||
+                "nada"
               }`,
           )
           .join("\n")}`;

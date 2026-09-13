@@ -2,7 +2,8 @@ import type { McpActivity } from "@camaleon/shared";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { Check, Terminal, X } from "lucide-react";
-import { TOKENS } from "../app/theme";
+import { useEffect, useRef } from "react";
+import { EASE_IOS, TOKENS, tabular } from "../app/theme";
 import { useCanvas } from "./store";
 import {
   AnimatePresence,
@@ -57,14 +58,14 @@ export function McpBadge() {
       aria-expanded={open}
       sx={{
         ...TapTarget,
-        borderRadius: "var(--radius-pill)",
+        borderRadius: "var(--radius-s)",
         px: 1.5,
         display: "flex",
         alignItems: "center",
         gap: 0.75,
         color: "text.secondary",
         backgroundColor: TOKENS.card,
-        boxShadow: `${TOKENS.hairline}, ${TOKENS.elev1}`,
+        boxShadow: `${TOKENS.glossLight}, ${TOKENS.hairline}, ${TOKENS.elev1}`,
       }}
     >
       <MotionBox
@@ -72,17 +73,19 @@ export function McpBadge() {
           running ? { scale: [1, 1.55, 1], opacity: [1, 0.45, 1] } : { scale: 1, opacity: 1 },
         )}
         transition={
-          running && !reduced ? { repeat: Number.POSITIVE_INFINITY, duration: 1 } : t(springSoft)
+          running && !reduced
+            ? { repeat: Number.POSITIVE_INFINITY, duration: 1, ease: EASE_IOS }
+            : t(springSoft)
         }
         sx={{
           width: 6,
           height: 6,
-          borderRadius: "var(--radius-pill)",
+          borderRadius: "var(--radius-2xs)",
           flexShrink: 0,
           backgroundColor: running ? "primary.main" : "success.main",
         }}
       />
-      <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: "0.04em" }}>
+      <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: "0.04em", ...tabular }}>
         MCP {mcp.length > 0 && `· ${mcp.length}`}
       </Typography>
     </MotionButton>
@@ -99,6 +102,21 @@ export function McpPanel() {
   const toggle = useCanvas((s) => s.togglePanel);
   const mcp = useCanvas((s) => s.mcp);
   const { t, reduced } = useMotionPrefs();
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+
+  // Una hoja modal se cierra con Escape y recibe el foco al abrir.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") toggle();
+    };
+    window.addEventListener("keydown", onKey);
+    const id = window.setTimeout(() => closeRef.current?.focus({ preventScroll: true }), 60);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.clearTimeout(id);
+    };
+  }, [open, toggle]);
 
   return (
     <AnimatePresence>
@@ -131,8 +149,9 @@ export function McpPanel() {
             onDragEnd={(_, info) => {
               if (info.offset.y > 90) toggle();
             }}
-            className="liquid-glass-solid"
+            className="paper-floating"
             role="dialog"
+            aria-modal="true"
             aria-label="Actividad MCP"
             sx={{
               position: "absolute",
@@ -153,8 +172,8 @@ export function McpPanel() {
                 sx={{
                   width: 40,
                   height: 4,
-                  borderRadius: "var(--radius-pill)",
-                  backgroundColor: TOKENS.tintInk20,
+                  borderRadius: "var(--radius-2xs)",
+                  backgroundColor: TOKENS.well,
                 }}
               />
             </Box>
@@ -175,6 +194,7 @@ export function McpPanel() {
                 <Typography variant="subtitle2">Actividad MCP</Typography>
               </Box>
               <MotionButton
+                ref={closeRef}
                 type="button"
                 onClick={toggle}
                 whileTap={{ scale: 0.9 }}
@@ -182,7 +202,7 @@ export function McpPanel() {
                 aria-label="Cerrar"
                 sx={{
                   ...TapTarget,
-                  borderRadius: "var(--radius-pill)",
+                  borderRadius: "var(--radius-s)",
                   color: "text.secondary",
                 }}
               >
@@ -221,12 +241,14 @@ export function McpRail() {
             running ? { scale: [1, 1.55, 1], opacity: [1, 0.45, 1] } : { scale: 1, opacity: 1 },
           )}
           transition={
-            running && !reduced ? { repeat: Number.POSITIVE_INFINITY, duration: 1 } : undefined
+            running && !reduced
+              ? { repeat: Number.POSITIVE_INFINITY, duration: 1, ease: EASE_IOS }
+              : undefined
           }
           sx={{
             width: 6,
             height: 6,
-            borderRadius: "var(--radius-pill)",
+            borderRadius: "var(--radius-2xs)",
             backgroundColor: running ? TOKENS.red : TOKENS.goodOnDark,
           }}
         />
@@ -266,7 +288,7 @@ function McpRow({ activity, dark }: { activity: McpActivity; dark: boolean }) {
 
   return (
     <MotionBox
-      layout
+      layout="position"
       initial={{ opacity: 0, x: -16, filter: "blur(4px)" }}
       animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       exit={{ opacity: 0, x: 16 }}
@@ -277,10 +299,9 @@ function McpRow({ activity, dark }: { activity: McpActivity; dark: boolean }) {
         gap: 1.25,
         px: 1.5,
         py: 1.25,
-        borderRadius: "var(--radius-s)",
-        // Fila hundida sobre su hoja: tinta (o luz) muy diluida + hairline.
-        backgroundColor: dark ? TOKENS.tintWhite8 : TOKENS.tintInk3,
-        boxShadow: `inset 0 0 0 1px ${dark ? TOKENS.tintWhite8 : TOKENS.tintInk5}`,
+        borderRadius: "var(--radius-m)",
+        // Fila hundida en la mesa (o en luz diluida sobre el riel).
+        backgroundColor: dark ? TOKENS.tintWhite8 : TOKENS.sunken,
       }}
     >
       <Box sx={{ pt: 0.4, flexShrink: 0 }}>
@@ -295,7 +316,7 @@ function McpRow({ activity, dark }: { activity: McpActivity; dark: boolean }) {
             sx={{
               width: 13,
               height: 13,
-              borderRadius: "var(--radius-pill)",
+              borderRadius: "var(--radius-2xs)",
               border: `2px solid ${color}`,
               borderTopColor: reduced ? color : "transparent",
             }}

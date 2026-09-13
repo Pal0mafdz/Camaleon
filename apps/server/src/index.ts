@@ -111,7 +111,8 @@ app.post("/converse", async (c) => {
             widgets: (m.widgets as Widget[]).map((w) => ({
               id: w.id,
               type: w.type,
-              title: "title" in w.props && typeof w.props.title === "string" ? w.props.title : undefined,
+              title:
+                "title" in w.props && typeof w.props.title === "string" ? w.props.title : undefined,
             })),
           });
         }
