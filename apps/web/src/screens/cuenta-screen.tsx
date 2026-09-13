@@ -48,6 +48,20 @@ function toNumber(raw: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * El saldo de Inicio es una foto fija que pintó `/home` al abrir la app: sin
+ * esto, abonar aquí no se ve reflejado ahí hasta cerrar sesión. Si el lienzo
+ * ya pintó la tarjeta de saldo, la actualizamos en el sitio; si Inicio nunca
+ * se pintó (o se limpió al abrir Asesor), no hay nada que sincronizar — la
+ * próxima vez que se abra Inicio, `/home` trae el saldo real de una vez.
+ */
+function syncHomeBalance(balance: number) {
+  const { widgets, upsertWidget } = useCanvas.getState();
+  const widget = widgets.find((w) => w.id === "home-balance");
+  if (widget?.type !== "balance") return;
+  upsertWidget({ ...widget, props: { ...widget.props, value: balance } });
+}
+
 export function CuentaScreen() {
   const userId = useCanvas((s) => s.userId);
 
@@ -101,7 +115,10 @@ export function CuentaScreen() {
         <>
           <BalanceCard
             balance={balance.balance}
-            onDeposited={(next) => setBalance((cur) => (cur ? { ...cur, balance: next } : cur))}
+            onDeposited={(next) => {
+              setBalance((cur) => (cur ? { ...cur, balance: next } : cur));
+              syncHomeBalance(next);
+            }}
           />
 
           <ScreenSection label="Agregar dinero a una meta">
@@ -123,6 +140,7 @@ export function CuentaScreen() {
                       setGoals((cur) =>
                         (cur ?? []).map((g) => (g.id === result.goal.id ? result.goal : g)),
                       );
+                      syncHomeBalance(result.balance);
                     }}
                   />
                 ))
