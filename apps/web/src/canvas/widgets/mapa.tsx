@@ -3,26 +3,23 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Star } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import { TOKENS } from "../../app/theme";
-import { AskPill } from "./bits";
-import {
-  Label,
-  MotionBox,
-  MotionButton,
-  springSoft,
-  Stagger,
-  staggerItem,
-  WidgetShell,
-  WidgetTitle,
-} from "./shell";
+import { AskPill, TonePill } from "./bits";
+import { MotionBox, springSoft, useMotionPrefs, WidgetShell, WidgetTitle } from "./shell";
 
 /**
  * La ruta como mapa real: tiles de OpenStreetMap vía react-leaflet (mismas
  * librerías que expone https://shadcn-map.vercel.app), con paradas numeradas
  * y la polilínea de la ruta encima. No requiere API key.
+ *
+ * La tarjeta del lugar destacado entra debajo del mapa una vez que este ya
+ * está en pantalla.
  */
+
+const MAP_H = 280;
 
 function numberedIcon(n: number) {
   return L.divIcon({
@@ -60,6 +57,7 @@ export function MapaWidget({
   props: WidgetProps["mapa"];
   onAsk?: (q: string) => void;
 }) {
+  const { t } = useMotionPrefs();
   const positions = useMemo<[number, number][]>(
     () => props.stops.map((s) => [s.lat, s.lng]),
     [props.stops],
@@ -72,7 +70,7 @@ export function MapaWidget({
         <WidgetTitle>{props.title}</WidgetTitle>
       </Box>
 
-      <Box sx={{ position: "relative", height: 300, backgroundColor: TOKENS.map }}>
+      <Box sx={{ position: "relative", height: MAP_H, backgroundColor: TOKENS.map }}>
         <MapContainer
           center={positions[0]}
           zoom={11}
@@ -110,58 +108,83 @@ export function MapaWidget({
         </MapContainer>
       </Box>
 
-      <Stagger sx={{ px: 2.5, py: 2.25, backgroundColor: "background.paper" }}>
-        <MotionBox variants={staggerItem}>
-          <Label>{props.card.kicker}</Label>
-          <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 0.5 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
-              {props.card.title}
-            </Typography>
+      {/* La ficha del lugar entra cuando el mapa ya está en pantalla. */}
+      <MotionBox
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={t({ ...springSoft, delay: 0.15 })}
+        sx={{ px: 2.5, py: 2.25 }}
+      >
+        <Box>
+          <Typography variant="h5" sx={{ color: "text.primary", overflowWrap: "anywhere" }}>
+            {props.card.title}
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 0.75,
+              mt: 0.75,
+            }}
+          >
+            <TonePill tone="accent">{props.card.kicker}</TonePill>
             {props.card.rating && (
-              <Typography variant="body2" sx={{ color: "warning.dark", fontWeight: 600 }}>
-                {props.card.rating}
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                <Star
+                  size={13}
+                  strokeWidth={2.4}
+                  color={TOKENS.warn}
+                  fill={TOKENS.warn}
+                  aria-hidden
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: TOKENS.warnInk,
+                    fontWeight: 700,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {props.card.rating.replace(/^[★⭐]\s*/u, "")}
+                </Typography>
+              </Box>
+            )}
+            {props.card.meta && (
+              <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 500 }}>
+                {props.card.meta}
               </Typography>
             )}
           </Box>
-          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.75 }}>
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary", mt: 1.25, overflowWrap: "anywhere" }}
+          >
             {props.card.body}
           </Typography>
-          {props.card.meta && (
-            <Typography
-              variant="caption"
-              sx={{ color: "text.disabled", display: "block", mt: 0.5 }}
-            >
-              {props.card.meta}
-            </Typography>
-          )}
-        </MotionBox>
+        </Box>
 
-        {detail && (
-          <MotionBox variants={staggerItem} sx={{ mt: 1.25 }}>
-            <MotionButton
-              type="button"
-              whileTap={{ scale: 0.96 }}
-              onClick={() => onAsk?.(detail)}
-              sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, py: 0.5 }}
-            >
-              <Typography variant="body2" sx={{ color: "primary.dark", fontWeight: 600 }}>
-                Ver detalle →
-              </Typography>
-            </MotionButton>
-          </MotionBox>
+        {(detail || props.ask) && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 2 }}>
+            {detail && (
+              <AskPill
+                label={`Ver detalle de ${props.card.title}`}
+                question={detail}
+                onAsk={onAsk}
+                variant="paper"
+              />
+            )}
+            {props.ask && (
+              <AskPill
+                label={props.ask.label}
+                question={props.ask.ask}
+                onAsk={onAsk}
+                variant="ink"
+              />
+            )}
+          </Box>
         )}
-
-        {props.ask && (
-          <MotionBox
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...springSoft, delay: 0.25 }}
-            sx={{ mt: 2 }}
-          >
-            <AskPill label={props.ask.label} question={props.ask.ask} onAsk={onAsk} variant="ink" />
-          </MotionBox>
-        )}
-      </Stagger>
+      </MotionBox>
     </WidgetShell>
   );
 }

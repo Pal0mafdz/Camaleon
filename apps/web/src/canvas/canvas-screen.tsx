@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLayoutMode } from "../app/app-shell";
 import { useAuth } from "../auth/store";
 import { ask } from "./agent";
+import { TableLight } from "./brand-band";
 import { CanvasHeader } from "./canvas-header";
 import { BootSkeleton, CanvasError, EmptyState, StatusPill } from "./canvas-states";
 import { CommandBar, Suggestions } from "./command-bar";
 import { McpPanel } from "./mcp-panel";
-import { RenderWidget } from "./renderer";
+import { RenderWidget, widgetSpan, widgetSpanCompact } from "./renderer";
 import { useCanvas } from "./store";
-import { AnimatePresence } from "./widgets/shell";
+import { AnimatePresence, MotionBox } from "./widgets/shell";
 
 const SUGGESTIONS = [
   "¿Me alcanza para un Mazda 3?",
@@ -37,6 +38,9 @@ export function CanvasScreen() {
   const setTab = useCanvas((s) => s.setTab);
   const userId = useCanvas((s) => s.userId);
   const setConversationId = useCanvas((s) => s.setConversationId);
+  const canvasKind = useCanvas((s) => s.canvasKind);
+  const setCanvasKind = useCanvas((s) => s.setCanvasKind);
+  const clearCanvas = useCanvas((s) => s.clearCanvas);
   const userName = useAuth((s) => s.user?.name);
 
   const layout = useLayoutMode();
@@ -45,11 +49,13 @@ export function CanvasScreen() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const busy = status !== null;
 
-  // El header se materializa cuando algo pasa por debajo. `useScroll` va sobre
-  // rAF, no sobre un listener que forzaría reflows continuos.
-  const [lifted, setLifted] = useState(false);
+  // El velo del header sigue al scroll píxel a píxel. `useScroll` va sobre
+  // rAF y el valor viaja como MotionValue: ningún re-render por scroll.
   const { scrollY } = useScroll({ container: scrollRef });
-  useMotionValueEvent(scrollY, "change", (y) => setLifted(y > 8));
+  // La laca y el holograma de las tarjetas leen `--scroll-y` por CSS.
+  useMotionValueEvent(scrollY, "change", (v) => {
+    scrollRef.current?.style.setProperty("--scroll-y", String(Math.round(v)));
+  });
 
   const onAsk = useCallback(
     (question: string) => {
@@ -60,6 +66,7 @@ export function CanvasScreen() {
       // El inicio no es una charla: se calcula de la BD y cierra la anterior.
       const home = question.trim() === "inicio";
       if (home) setConversationId(null);
+      setCanvasKind(home ? "home" : "chat");
 
       setError(null);
       beginTurn();
@@ -93,7 +100,16 @@ export function CanvasScreen() {
           setStatus(null);
         });
     },
-    [userId, upsertWidget, pushMcp, setStatus, setConversationId, beginTurn, endTurn],
+    [
+      userId,
+      upsertWidget,
+      pushMcp,
+      setStatus,
+      setConversationId,
+      setCanvasKind,
+      beginTurn,
+      endTurn,
+    ],
   );
 
   // Toda pregunta que nace de un gesto es del asesor, aunque la haya disparado
@@ -112,12 +128,31 @@ export function CanvasScreen() {
   }, [setStatus]);
 
   // La diferencia con un chat: aquí el agente habla primero. Al entrar a Inicio
-  // (al abrir la app, al cambiar de perfil o al volver de otra pestaña) revisa
-  // la cuenta y pinta el lienzo sin que nadie escriba nada.
+  // (al abrir la app o al cambiar de perfil) revisa la cuenta y pinta el lienzo
+  // sin que nadie escriba nada. Si el inicio ya está pintado para este perfil,
+  // volver a la pestaña no lo vuelve a pedir: perdería el scroll y la charla.
+  const homeForRef = useRef<string | null>(null);
   useEffect(() => {
     if (tab !== "inicio") return;
+    if (canvasKind === "home" && homeForRef.current === userId) return;
+    homeForRef.current = userId;
     onAsk("inicio");
-  }, [tab, onAsk]);
+  }, [tab, onAsk, userId, canvasKind]);
+
+  // `Asesor` es la charla: si el lienzo trae el inicio, se despeja para que la
+  // pregunta nazca en blanco, y la barra recibe el foco para escribir ya.
+  useEffect(() => {
+    if (tab !== "asesor") return;
+    if (useCanvas.getState().canvasKind === "home") {
+      abortRef.current?.abort();
+      clearCanvas();
+    }
+    const id = window.setTimeout(() => {
+      const input = document.getElementById("camaleon-pregunta");
+      if (input instanceof HTMLInputElement) input.focus({ preventScroll: true });
+    }, 320);
+    return () => window.clearTimeout(id);
+  }, [tab, clearCanvas]);
 
   const empty = widgets.length === 0;
   // En escritorio el log MCP vive fijo en el riel: duplicarlo en una hoja
@@ -133,40 +168,69 @@ export function CanvasScreen() {
         bgcolor: "background.default",
       }}
     >
-      <CanvasHeader lifted={lifted} showMcp={sheetOwnsMcp} />
+      <TableLight scrollY={scrollY} />
+      <CanvasHeader scrollY={scrollY} showMcp={sheetOwnsMcp} />
 
-      {/* ── Lienzo: el ÚNICO dueño del scroll de esta pantalla ───────────── */}
+      {/* ── Lienzo: el ÚNICO dueño del scroll de esta pantalla ───────────────── */}
       <Box
         ref={scrollRef}
         className="no-scrollbar scroll-body"
         sx={{
+          position: "relative",
+          zIndex: 1,
           height: "100%",
           pl: "calc(var(--gutter) + var(--safe-left))",
           pr: "calc(var(--gutter) + var(--safe-right))",
           pt: "calc(var(--header-h) + 8px)",
           pb: "calc(var(--dock-clearance) + var(--safe-bottom) + var(--dock-offset))",
-          display: "flex",
-          flexDirection: "column",
+          // Dos columnas siempre: en el teléfono solo salud y gasto de hoy las
+          // comparten (`widgetSpanCompact`); en escritorio, todo lo compacto.
+          display: "grid",
+          gridTemplateColumns: "repeat(var(--canvas-cols, 2), minmax(0, 1fr))",
+          alignItems: "stretch",
+          alignContent: "start",
           gap: 1.5,
-          // Sin esto flexbox aplasta los widgets contra la altura del shell
-          // en vez de dejarlos crecer y hacer scroll.
-          "& > *": { flexShrink: 0 },
+          "& > [data-span='2'], & > [data-span='full']": { gridColumn: "1 / -1" },
         }}
       >
-        {empty && !busy && <EmptyState greeting={`Hola, ${userName ?? ""}`} />}
-        {empty && busy && <BootSkeleton />}
+        {empty && !busy && (
+          <Box data-span="full">
+            <EmptyState greeting={`Hola, ${userName ?? ""}`} />
+          </Box>
+        )}
+        {empty && busy && (
+          <Box data-span="full">
+            <BootSkeleton />
+          </Box>
+        )}
 
         <AnimatePresence mode="popLayout" initial={false}>
-          {widgets.map((w) => (
-            <RenderWidget key={w.id} widget={w} onAsk={askHere} />
+          {widgets.map((w, i) => (
+            <MotionBox
+              key={w.id}
+              data-span={layout === "wide" ? widgetSpan(w.type) : widgetSpanCompact(w.type)}
+              sx={{ minWidth: 0, display: "grid" }}
+            >
+              <RenderWidget widget={w} order={i} onAsk={askHere} />
+            </MotionBox>
           ))}
         </AnimatePresence>
 
         <AnimatePresence>
-          {busy && status && !empty && <StatusPill label={status.label} />}
+          {busy && status && !empty && (
+            <Box data-span="full" sx={{ display: "flex" }}>
+              <StatusPill label={status.label} />
+            </Box>
+          )}
         </AnimatePresence>
 
-        <AnimatePresence>{error && <CanvasError message={error} />}</AnimatePresence>
+        <AnimatePresence>
+          {error && (
+            <Box data-span="full">
+              <CanvasError message={error} />
+            </Box>
+          )}
+        </AnimatePresence>
       </Box>
 
       {/* Disuelve el contenido bajo la barra en vez de cortarlo en seco. */}

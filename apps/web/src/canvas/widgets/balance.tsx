@@ -1,74 +1,93 @@
 import type { WidgetProps } from "@camaleon/shared";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { ArrowDownRight, ArrowUpRight, X } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { useState } from "react";
+import { useLayoutMode } from "../../app/app-shell";
 import { TOKENS } from "../../app/theme";
+import { useAuth } from "../../auth/store";
 import { formatMoney } from "../format";
+import { useCanvas } from "../store";
 import { AmountRow, AskPill, Expand, SectionLabel, TapHeader } from "./bits";
 import {
+  Chip,
+  Hologram,
+  IngotCore,
   Label,
   MotionBox,
   MotionButton,
   RollingNumber,
-  Sparkbars,
+  Sparkline,
   Stagger,
+  spring,
   springSoft,
   staggerItem,
-  TapTarget,
   useMotionPrefs,
   WidgetShell,
 } from "./shell";
 
 /**
- * El saldo protagonista del inicio. Es la única tarjeta OSCURA del lienzo —
- * la firma del sistema: lo que más importa no compite con nadie.
+ * LA TARJETA ROJA. La única superficie de color del lienzo: el saldo como
+ * tarjeta Banorte física. `WidgetShell variant="ink"` la entrega inclinada y
+ * la apoya; el holograma barre una vez cuando se asienta; la cifra en relieve
+ * rueda después (`delay`), así el ojo llega cuando el número arranca.
  *
- * Usa el doble bisel: concha exterior de tinta con reborde superior luminoso y
- * núcleo interior con radio concéntrico (radio exterior − padding). Es lo que
- * la hace leerse como un objeto físico y no como un rectángulo negro.
+ * Chip = de dónde salen los datos (abre la actividad MCP; sus contactos se
+ * iluminan mientras corre una herramienta). Holograma = dato vivo (barre en
+ * bucle mientras el agente trabaja). Abajo, como en la tarjeta real: el
+ * nombre del titular y la moneda.
+ *
+ * Composición: una cifra (saldo), un dato de apoyo (cuánto se va de lo que
+ * entra), una acción (la pregunta al agente, en el detalle).
  */
 
-/**
- * Entra vs. sale como UNA barra, no como dos cifras sueltas.
- *
- * No son partes de un todo: el carril es lo que entra y el relleno es lo que
- * se va. Así la tarjeta responde la pregunta real —"¿cuánto de lo que gano se
- * me va?"— en vez de repetir dos montos que ya viven en el detalle.
- */
-function FlowBar({ income, outgo }: { income: number; outgo: number }) {
+/** Entra vs. sale como UNA barra: el carril es lo que entra y el relleno lo que se va. */
+function FlowBar({ income, outgo, delay }: { income: number; outgo: number; delay: number }) {
   const { t } = useMotionPrefs();
   const share = income > 0 ? Math.min(outgo / income, 1) : 0;
   const pct = Math.round(share * 100);
   const tight = pct >= 90;
+  const empty = income <= 0 && outgo <= 0;
+
+  if (empty) {
+    return (
+      <Typography variant="body2" sx={{ color: TOKENS.onDarkDim }}>
+        Aún no hay movimientos este mes.
+      </Typography>
+    );
+  }
 
   return (
     <Box>
       <Box
         sx={{
-          height: 10,
-          borderRadius: "var(--radius-pill)",
+          height: 8,
+          borderRadius: "var(--radius-2xs)",
           overflow: "hidden",
-          backgroundColor: TOKENS.tintGood12,
-          boxShadow: `inset 0 0 0 1px ${TOKENS.tintWhite8}`,
+          backgroundColor: TOKENS.tintWhite24,
         }}
       >
         <MotionBox
           initial={{ scaleX: 0 }}
           animate={{ scaleX: share }}
-          transition={t({ ...springSoft, delay: 0.18 })}
+          transition={t({ ...springSoft, delay })}
           sx={{
             height: "100%",
             transformOrigin: "left",
-            backgroundColor: tight ? TOKENS.badOnDark : TOKENS.goodOnDark,
+            borderRadius: "var(--radius-2xs)",
+            backgroundColor: tight ? TOKENS.badOnDark : TOKENS.onDark,
           }}
         />
       </Box>
-      <Typography variant="body2" sx={{ color: TOKENS.onDarkDim, mt: 1 }}>
+      <Typography variant="body2" sx={{ color: TOKENS.onDarkDim, mt: 1, fontWeight: 500 }}>
         Se te va{" "}
         <Box
           component="span"
-          sx={{ color: tight ? TOKENS.badOnDark : TOKENS.onDark, fontWeight: 700 }}
+          sx={{
+            color: TOKENS.onDark,
+            fontWeight: 700,
+            fontVariantNumeric: "tabular-nums",
+          }}
         >
           {pct}%
         </Box>{" "}
@@ -78,20 +97,20 @@ function FlowBar({ income, outgo }: { income: number; outgo: number }) {
   );
 }
 
-/** Cápsula de entradas o salidas del mes. */ function Capsule({
+/** Cápsula de entradas o salidas del mes: panel translúcido sobre el granate. */
+function Capsule({
   label,
   value,
   caption,
-  color,
   up,
 }: {
   label: string;
   value: number;
   caption?: string;
-  color: string;
   up: boolean;
 }) {
   const Icon = up ? ArrowUpRight : ArrowDownRight;
+  const color = up ? TOKENS.goodOnDark : TOKENS.badOnDark;
 
   return (
     <MotionBox
@@ -101,20 +120,28 @@ function FlowBar({ income, outgo }: { income: number; outgo: number }) {
         minWidth: 0,
         borderRadius: "var(--radius-m)",
         p: 1.75,
-        backgroundColor: TOKENS.tintWhite8,
+        backgroundColor: TOKENS.tintWhite14,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color }}>
-        <Icon size={13} strokeWidth={2.6} />
+        <Icon size={13} strokeWidth={2.6} aria-hidden />
         <Label dark>{label}</Label>
       </Box>
-      <Typography variant="h5" sx={{ color, mt: 0.5, fontVariantNumeric: "tabular-nums" }}>
+      <Typography
+        variant="h5"
+        sx={{
+          color: TOKENS.onDark,
+          mt: 0.5,
+          fontVariantNumeric: "tabular-nums",
+          overflowWrap: "anywhere",
+        }}
+      >
         {formatMoney(value)}
       </Typography>
       {caption && (
         <Typography
           variant="body2"
-          sx={{ color: TOKENS.onDarkFaint, display: "block", mt: 0.25, overflowWrap: "anywhere" }}
+          sx={{ color: TOKENS.onDarkDim, display: "block", mt: 0.25, overflowWrap: "anywhere" }}
         >
           {caption}
         </Typography>
@@ -131,72 +158,114 @@ export function BalanceWidget({
   onAsk?: (q: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useMotionPrefs();
+  const { t, step } = useMotionPrefs();
+  const layout = useLayoutMode();
+  const busy = useCanvas((s) => s.status !== null);
+  const toolRunning = useCanvas((s) => s.mcp.some((a) => a.status === "running"));
+  const togglePanel = useCanvas((s) => s.togglePanel);
+  const panelOpen = useCanvas((s) => s.panelOpen);
+  const holder = useAuth((s) => s.user?.name) ?? "";
+
   const delta = props.delta ?? 0;
   const bars = props.bars;
-
-  // El agente a veces manda de caption la misma frase que ya cuenta la barra de
-  // flujo ("Entran $28,400, salen $23,294"). Imprimir el mismo hecho dos veces
-  // hace que la tarjeta se lea como un volcado de datos, así que si la caption
-  // repite ambos montos se calla.
   const caption = props.caption;
   const echoesFlow =
     caption !== undefined &&
-    caption.includes(formatMoney(props.income.value)) &&
-    caption.includes(formatMoney(props.outgo.value));
+    [props.income.value, props.outgo.value].every((v) => caption.includes(formatMoney(v)));
+
+  // En escritorio el log MCP vive fijo en el riel: el chip no abre nada.
+  const chipOpens = layout !== "wide";
 
   return (
-    <WidgetShell
-      glass={false}
-      pad={0}
-      sx={{
-        backgroundColor: TOKENS.ink,
-        boxShadow: `${TOKENS.glossInk}, ${TOKENS.elevInk}`,
-        // La firma del lienzo respira más que el resto: el aire extra debajo es
-        // lo que la separa en un TIER propio en vez de dejarla como una tarjeta
-        // más en una pila de cajas del mismo peso.
-        mb: 1,
-      }}
-    >
-      {/* Núcleo del doble bisel: radio concéntrico = --radius-l menos el padding
-          de la concha (6px), y su propio brillo superior. */}
-      <Box
-        sx={{
-          m: 0.75,
-          p: 2,
-          borderRadius: "var(--radius-m)",
-          backgroundColor: TOKENS.inkRaised,
-          boxShadow: TOKENS.glossInk,
-        }}
-      >
-        <TapHeader expanded={open} onToggle={() => setOpen((v) => !v)}>
+    <WidgetShell variant="ink" pad={0} sx={{ mb: 1 }}>
+      <IngotCore sx={{ pt: 2 }}>
+        {/* Fila de la tarjeta: chip a la izquierda, holograma a la derecha. */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {chipOpens ? (
+            <MotionButton
+              type="button"
+              onClick={togglePanel}
+              whileTap={{ scale: 0.94 }}
+              transition={t(spring)}
+              aria-label="Ver de dónde salen estos datos (actividad MCP)"
+              aria-expanded={panelOpen}
+              sx={{
+                minHeight: "var(--tap-min)",
+                minWidth: "var(--tap-min)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 1.25,
+                ml: -0.5,
+                pl: 0.5,
+                pr: 1,
+                borderRadius: "var(--radius-s)",
+              }}
+            >
+              <Chip active={toolRunning} />
+              <Typography
+                variant="caption"
+                sx={{ color: TOKENS.onDarkFaint, fontWeight: 600, letterSpacing: "0.04em" }}
+              >
+                {toolRunning ? "Leyendo tu cuenta…" : "Vía MCP Banorte"}
+              </Typography>
+            </MotionButton>
+          ) : (
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1.25, minHeight: 44 }}>
+              <Chip active={toolRunning} />
+              <Typography
+                variant="caption"
+                sx={{ color: TOKENS.onDarkFaint, fontWeight: 600, letterSpacing: "0.04em" }}
+              >
+                {toolRunning ? "Leyendo tu cuenta…" : "Vía MCP Banorte"}
+              </Typography>
+            </Box>
+          )}
+          <Hologram sweeping={busy} delay={step(2)} width={48} height={32} />
+        </Box>
+
+        <TapHeader expanded={open} onToggle={() => setOpen((v) => !v)} hint dark sx={{ mt: 1.5 }}>
           <Label dark>{props.label}</Label>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap", mt: 0.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "baseline",
+              columnGap: 1.25,
+              rowGap: 0.75,
+              flexWrap: "wrap",
+              mt: 0.5,
+              minWidth: 0,
+            }}
+          >
             <RollingNumber
               value={props.value}
               format={(n) => formatMoney(n)}
               variant="h2"
-              sx={{ color: TOKENS.onDark, fontSize: 42 }}
+              className="ingot-figure embossed"
+              delay={step(3)}
+              sx={{ color: TOKENS.onDark, minWidth: 0, overflowWrap: "anywhere" }}
             />
             {delta > 0 && (
               <MotionBox
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={t({ ...springSoft, delay: 0.18 })}
+                transition={t({ ...springSoft, delay: step(5) })}
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 0.25,
                   px: 1,
                   py: 0.375,
-                  borderRadius: "var(--radius-pill)",
-                  color: TOKENS.goodOnDark,
-                  backgroundColor: TOKENS.tintGood12,
+                  borderRadius: "var(--radius-xs)",
+                  color: TOKENS.onDark,
+                  backgroundColor: TOKENS.tintWhite14,
                 }}
               >
-                <ArrowUpRight size={13} strokeWidth={2.8} />
-                <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                <ArrowUpRight size={13} strokeWidth={2.8} aria-hidden />
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
+                >
                   {formatMoney(delta)} / mes
                 </Typography>
               </MotionBox>
@@ -205,11 +274,12 @@ export function BalanceWidget({
 
           {bars.length > 1 && (
             <Box sx={{ mt: 2.5 }}>
-              <SectionLabel dark>Cómo vienes</SectionLabel>
-              <Sparkbars
+              <Sparkline
                 values={bars}
-                color={TOKENS.red}
+                color={TOKENS.onDark}
                 dark
+                height={52}
+                delay={step(4)}
                 axis={{
                   start: formatMoney(bars[0] as number),
                   end: formatMoney(bars[bars.length - 1] as number),
@@ -218,8 +288,8 @@ export function BalanceWidget({
             </Box>
           )}
 
-          <Box sx={{ mt: 2.5 }}>
-            <FlowBar income={props.income.value} outgo={props.outgo.value} />
+          <Box sx={{ mt: 2.25 }}>
+            <FlowBar income={props.income.value} outgo={props.outgo.value} delay={step(4)} />
           </Box>
 
           {caption && !echoesFlow && (
@@ -230,74 +300,99 @@ export function BalanceWidget({
               {caption}
             </Typography>
           )}
+
+          {/* Pie de la tarjeta física: titular y moneda. */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 2,
+              mt: 2.5,
+              minWidth: 0,
+            }}
+          >
+            <Typography
+              variant="caption"
+              className="embossed"
+              sx={{
+                color: TOKENS.onDark,
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {holder}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: TOKENS.onDarkFaint,
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                flexShrink: 0,
+              }}
+            >
+              MXN · BANORTE
+            </Typography>
+          </Box>
         </TapHeader>
 
         <Expand open={open}>
           <Stagger sx={{ pt: 2.5 }}>
-            <Box sx={{ display: "flex", gap: 1.25 }}>
+            <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap" }}>
               <Capsule
                 label={props.income.label}
                 value={props.income.value}
                 caption={props.income.caption}
-                color={TOKENS.goodOnDark}
                 up
               />
               <Capsule
                 label={props.outgo.label}
                 value={props.outgo.value}
                 caption={props.outgo.caption}
-                color={TOKENS.badOnDark}
                 up={false}
               />
             </Box>
 
-            {props.movements.length > 0 && (
-              <MotionBox variants={staggerItem} sx={{ mt: 2.5 }}>
-                <SectionLabel dark>Movimientos grandes del mes</SectionLabel>
+            <MotionBox variants={staggerItem} sx={{ mt: 2.5 }}>
+              <SectionLabel dark>Movimientos grandes del mes</SectionLabel>
+              {props.movements.length > 0 ? (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {props.movements.map((m) => (
                     <AmountRow
                       key={m.label}
                       label={m.label}
                       amount={formatMoney(m.amount)}
-                      color={TOKENS.badOnDark}
+                      color={m.amount < 0 ? TOKENS.badOnDark : TOKENS.goodOnDark}
                       dark
                     />
                   ))}
                 </Box>
-              </MotionBox>
-            )}
+              ) : (
+                <Typography variant="body2" sx={{ color: TOKENS.onDarkDim }}>
+                  Ningún cargo grande todavía. Buen mes.
+                </Typography>
+              )}
+            </MotionBox>
 
             {props.ask && (
               <MotionBox variants={staggerItem} sx={{ mt: 2.5 }}>
-                <AskPill label={props.ask.label} question={props.ask.ask} onAsk={onAsk} />
+                <AskPill
+                  label={props.ask.label}
+                  question={props.ask.ask}
+                  onAsk={onAsk}
+                  variant="paper"
+                />
               </MotionBox>
             )}
           </Stagger>
         </Expand>
-      </Box>
-
-      {open && (
-        <MotionButton
-          type="button"
-          aria-label="Cerrar detalle"
-          initial={{ opacity: 0, scale: 0.7 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={t(springSoft)}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setOpen(false)}
-          sx={{
-            ...TapTarget,
-            position: "absolute",
-            top: 6,
-            right: 6,
-            borderRadius: "var(--radius-pill)",
-            color: TOKENS.onDarkDim,
-          }}
-        >
-          <X size={16} />
-        </MotionButton>
-      )}
+      </IngotCore>
     </WidgetShell>
   );
 }

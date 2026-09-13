@@ -2,10 +2,10 @@ import type { WidgetProps } from "@camaleon/shared";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
-import { useState } from "react";
-import { TOKENS } from "../../app/theme";
-import { formatMoney, toneColor } from "../format";
-import { AmountRow, Expand, Milestones, SectionLabel, TapHeader } from "./bits";
+import { useId, useState } from "react";
+import { EASE_OUT, TOKENS } from "../../app/theme";
+import { formatMoney, toneColor, toneInk } from "../format";
+import { AmountRow, Expand, Milestones, SectionLabel, TapHeader, TonePill } from "./bits";
 import {
   AnimatePresence,
   Label,
@@ -13,6 +13,7 @@ import {
   MotionBox,
   MotionButton,
   motion,
+  RollingNumber,
   Sparkbars,
   Stagger,
   spring,
@@ -30,19 +31,29 @@ import {
  */
 const SLICE_COLORS = TOKENS.viz;
 
-/** Dona SVG que se dibuja sola, sin librería de charts. */
+const DONUT = 124;
+const DONUT_STROKE = 15;
+const DONUT_R = (DONUT - DONUT_STROKE) / 2;
+const DONUT_C = 2 * Math.PI * DONUT_R;
+
+/**
+ * Dona SVG que se dibuja sola. Cada gajo crece desde su inicio (dasharray de
+ * `0` a su longitud, con el offset fijo) un paso después del anterior, así la
+ * dona se "llena" en el sentido del reloj. La leyenda es una columna flexible
+ * que baja debajo de la dona cuando no cabe al lado: a 375px nunca hay scroll
+ * horizontal ni etiquetas cortadas.
+ */
 export function DonutWidget({
   props,
 }: {
   props: WidgetProps["donut"];
   onAsk?: (q: string) => void;
 }) {
-  const { t } = useMotionPrefs();
+  const { t, step } = useMotionPrefs();
+  const uid = useId();
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(0);
   const total = props.slices.reduce((s, x) => s + x.value, 0) || 1;
-  const R = 54;
-  const C = 2 * Math.PI * R;
   let offset = 0;
 
   const detail = props.detail;
@@ -64,33 +75,49 @@ export function DonutWidget({
       <TapHeader
         expanded={open}
         onToggle={categories.length > 0 ? () => setOpen((v) => !v) : undefined}
+        hint={categories.length > 0}
       >
         <WidgetTitle>{props.title}</WidgetTitle>
-        <Box sx={{ display: "flex", gap: 2.5, alignItems: "center" }}>
-          <Box sx={{ position: "relative", width: 132, height: 132, flexShrink: 0 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 2.5,
+            alignItems: "center",
+            minWidth: 0,
+          }}
+        >
+          <Box sx={{ position: "relative", width: DONUT, height: DONUT, flexShrink: 0 }}>
             <Box
               component="svg"
-              viewBox="0 0 132 132"
-              sx={{ width: 132, height: 132, transform: "rotate(-90deg)" }}
+              viewBox={`0 0 ${DONUT} ${DONUT}`}
+              sx={{ width: DONUT, height: DONUT, transform: "rotate(-90deg)", display: "block" }}
+              aria-hidden
             >
-              <title>{props.title}</title>
+              <circle
+                cx={DONUT / 2}
+                cy={DONUT / 2}
+                r={DONUT_R}
+                fill="none"
+                stroke={TOKENS.well}
+                strokeWidth={DONUT_STROKE}
+              />
               {props.slices.map((s, i) => {
-                const frac = s.value / total;
-                const dash = frac * C;
+                const dash = (s.value / total) * DONUT_C;
                 const el = (
                   <motion.circle
                     key={s.label}
-                    cx={66}
-                    cy={66}
-                    r={R}
+                    cx={DONUT / 2}
+                    cy={DONUT / 2}
+                    r={DONUT_R}
                     fill="none"
                     stroke={SLICE_COLORS[i % SLICE_COLORS.length]}
-                    strokeWidth={14}
+                    strokeWidth={DONUT_STROKE}
                     strokeLinecap="butt"
-                    strokeDasharray={`${dash} ${C - dash}`}
-                    initial={{ strokeDashoffset: -offset - dash, opacity: 0 }}
-                    animate={{ strokeDashoffset: -offset, opacity: 1 }}
-                    transition={t({ ...springSoft, delay: 0.08 * i })}
+                    strokeDashoffset={-offset}
+                    initial={{ strokeDasharray: `0 ${DONUT_C}` }}
+                    animate={{ strokeDasharray: `${dash} ${DONUT_C - dash}` }}
+                    transition={t({ ...springSoft, delay: step(i + 1) })}
                   />
                 );
                 offset += dash;
@@ -100,18 +127,25 @@ export function DonutWidget({
             <Box
               sx={{
                 position: "absolute",
-                inset: 0,
+                inset: DONUT_STROKE + 4,
                 display: "grid",
                 placeItems: "center",
                 textAlign: "center",
               }}
             >
-              <Box>
-                <Typography variant="h5" sx={{ fontVariantNumeric: "tabular-nums" }}>
-                  {formatMoney(total)}
-                </Typography>
+              <Box sx={{ minWidth: 0 }}>
+                <RollingNumber
+                  value={total}
+                  format={(n) => formatMoney(n)}
+                  variant="subtitle1"
+                  delay={step(2)}
+                  sx={{ overflowWrap: "anywhere" }}
+                />
                 {props.centerLabel && (
-                  <Typography variant="caption" sx={{ color: "text.disabled" }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.disabled", display: "block", overflowWrap: "anywhere" }}
+                  >
                     {props.centerLabel}
                   </Typography>
                 )}
@@ -119,32 +153,36 @@ export function DonutWidget({
             </Box>
           </Box>
 
-          <Stagger sx={{ display: "flex", flexDirection: "column", gap: 1, flex: 1, minWidth: 0 }}>
+          <Stagger
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              // Si no caben 150px al lado de la dona, la leyenda baja: reflow, no scroll.
+              flex: "1 1 150px",
+              minWidth: 0,
+            }}
+          >
             {props.slices.map((s, i) => (
               <MotionBox
                 key={s.label}
                 variants={staggerItem}
-                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                sx={{ display: "flex", alignItems: "baseline", gap: 1, minWidth: 0 }}
               >
                 <Box
                   sx={{
                     width: 8,
                     height: 8,
-                    borderRadius: "var(--radius-xs)",
+                    borderRadius: "var(--radius-2xs)",
                     flexShrink: 0,
+                    alignSelf: "center",
                     backgroundColor: SLICE_COLORS[i % SLICE_COLORS.length],
                   }}
                   aria-hidden
                 />
                 <Typography
                   variant="body2"
-                  sx={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
+                  sx={{ flex: 1, minWidth: 0, fontWeight: 600, overflowWrap: "anywhere" }}
                 >
                   {s.label}
                 </Typography>
@@ -168,18 +206,8 @@ export function DonutWidget({
       {cat && (
         <Expand open={open}>
           <Box sx={{ pt: 2.5 }}>
-            <Box
-              sx={{
-                display: "flex",
-                gap: 1,
-                overflowX: "auto",
-                pb: 0.5,
-                mx: -0.5,
-                px: 0.5,
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none" },
-              }}
-            >
+            {/* Los chips se envuelven; el fondo del activo se desliza entre ellos. */}
+            <Box role="tablist" sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
               {categories.map((c, i) => {
                 const on = i === Math.min(picked, categories.length - 1);
                 const color = catColor(c.label, i);
@@ -187,24 +215,43 @@ export function DonutWidget({
                   <MotionButton
                     key={c.label}
                     type="button"
-                    aria-pressed={on}
+                    role="tab"
+                    aria-selected={on}
                     whileTap={{ scale: 0.95 }}
                     transition={t(spring)}
                     onClick={() => setPicked(i)}
                     sx={{
+                      position: "relative",
                       px: 1.75,
                       minHeight: "var(--tap-min)",
                       display: "flex",
                       alignItems: "center",
                       borderRadius: "var(--radius-pill)",
-                      flexShrink: 0,
-                      transition: "background-color var(--dur-micro) var(--ease-ios)",
-                      backgroundColor: on ? color : TOKENS.tintInk5,
+                      backgroundColor: TOKENS.tintInk5,
                     }}
                   >
+                    {on && (
+                      <MotionBox
+                        layoutId={`${uid}-chip`}
+                        transition={t(spring)}
+                        sx={{
+                          position: "absolute",
+                          inset: 0,
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: color,
+                        }}
+                        aria-hidden
+                      />
+                    )}
                     <Typography
                       variant="caption"
-                      sx={{ color: on ? TOKENS.onDark : "text.secondary", fontWeight: 700 }}
+                      sx={{
+                        position: "relative",
+                        color: on ? TOKENS.onDark : "text.secondary",
+                        fontWeight: 700,
+                        overflowWrap: "anywhere",
+                        transition: "color var(--dur-micro) var(--ease-ios)",
+                      }}
                     >
                       {c.label}
                     </Typography>
@@ -220,22 +267,33 @@ export function DonutWidget({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={t(spring)}
-                sx={{ pt: 2 }}
+                sx={{ pt: 2.25 }}
               >
                 <SectionLabel>{cat.label} · de lo que te entra</SectionLabel>
-                <Typography variant="h4" sx={{ color: active }}>
-                  {share}%
-                </Typography>
+                <RollingNumber
+                  value={share}
+                  format={(n) => `${Math.round(n)}%`}
+                  variant="h3"
+                  sx={{ color: active }}
+                />
                 <Box sx={{ mt: 1.25 }}>
-                  <Meter pct={share} color={active} height={8} />
+                  <Meter pct={share} color={active} height={8} delay={step(1)} />
                 </Box>
-                <Typography variant="body2" sx={{ color: "text.secondary", mt: 1.25 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "text.secondary",
+                    mt: 1.25,
+                    fontVariantNumeric: "tabular-nums",
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   {formatMoney(cat.monthly)} de {formatMoney(incomeTotal)} que entran
                 </Typography>
 
                 {cat.history.length > 1 && (
                   <Box sx={{ mt: 2.5 }}>
-                    <SectionLabel>Histórico</SectionLabel>
+                    <SectionLabel>Meses recientes</SectionLabel>
                     <Sparkbars
                       values={cat.history}
                       color={active}
@@ -248,15 +306,21 @@ export function DonutWidget({
                 )}
 
                 {cat.movements.length > 0 && (
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 2.5 }}>
-                    {cat.movements.map((m) => (
-                      <AmountRow key={m.label} label={m.label} amount={formatMoney(m.amount)} />
-                    ))}
+                  <Box sx={{ mt: 2.5 }}>
+                    <SectionLabel>Movimientos</SectionLabel>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                      {cat.movements.map((m) => (
+                        <AmountRow key={m.label} label={m.label} amount={formatMoney(m.amount)} />
+                      ))}
+                    </Box>
                   </Box>
                 )}
 
                 {cat.note && (
-                  <Typography variant="body2" sx={{ color: "text.secondary", mt: 1.75 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "text.secondary", mt: 1.75, overflowWrap: "anywhere" }}
+                  >
                     {cat.note}
                   </Typography>
                 )}
@@ -269,69 +333,163 @@ export function DonutWidget({
   );
 }
 
-/** Serie temporal como área SVG animada. */
+const TREND_W = 300;
+const TREND_H = 104;
+
+/**
+ * Serie temporal. La cifra protagonista es el último punto; el dato de apoyo,
+ * cuánto cambió desde el primero. La línea se traza con `pathLength` y el área
+ * se revela detrás con `clip-path`, a la misma velocidad: el usuario ve
+ * dibujarse la gráfica una sola vez, nunca en cada re-render.
+ */
 export function TrendWidget({ props }: { props: WidgetProps["trend"] }) {
   const theme = useTheme();
-  const { reduced } = useMotionPrefs();
-  const color = toneColor(props.tone === "neutral" ? "accent" : props.tone, theme);
-  const W = 300;
-  const H = 110;
+  const { t, reduced, step } = useMotionPrefs();
+  const uid = useId();
+  const tone = props.tone === "neutral" ? "accent" : props.tone;
+  const color = toneColor(tone, theme);
   const values = props.points.map((p) => p.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
+  const first = values[0] ?? 0;
+  const last = values[values.length - 1] ?? 0;
+  const diff = last - first;
+  const diffPct = first !== 0 ? Math.round((diff / Math.abs(first)) * 100) : 0;
+  const n = props.points.length;
 
-  const pts = props.points.map((p, i) => {
-    const x = (i / (props.points.length - 1)) * W;
-    const y = H - ((p.value - min) / span) * (H - 16) - 8;
-    return `${x},${y}`;
-  });
+  const coords = props.points.map((p, i) => ({
+    x: (i / Math.max(n - 1, 1)) * TREND_W,
+    y: TREND_H - ((p.value - min) / span) * (TREND_H - 20) - 10,
+  }));
+  const line = `M ${coords.map((c) => `${c.x},${c.y}`).join(" L ")}`;
+  const area = `${line} L ${TREND_W},${TREND_H} L 0,${TREND_H} Z`;
+  const end = coords[coords.length - 1] ?? { x: TREND_W, y: TREND_H / 2 };
+  const gradId = `${uid}-grad`;
+  const drawDelay = step(2);
+  const drawDuration = reduced ? 0 : 0.9;
 
-  const line = `M ${pts.join(" L ")}`;
-  const area = `${line} L ${W},${H} L 0,${H} Z`;
-  const gradId = `grad-${props.id ?? "trend"}`;
+  // Con muchos puntos las etiquetas no caben: se muestran solo los extremos.
+  const axis =
+    n <= 7
+      ? props.points.map((p, i) => ({ key: `${p.label}-${i}`, label: p.label }))
+      : [
+          { key: "start", label: props.points[0]?.label ?? "" },
+          { key: "end", label: props.points[n - 1]?.label ?? "" },
+        ];
 
   return (
     <WidgetShell>
       <WidgetTitle>{props.title}</WidgetTitle>
       <Box
-        component="svg"
-        viewBox={`0 0 ${W} ${H}`}
-        sx={{ width: "100%", height: H, display: "block" }}
+        sx={{
+          display: "flex",
+          alignItems: "baseline",
+          flexWrap: "wrap",
+          columnGap: 1.25,
+          rowGap: 0.5,
+          mb: 1.5,
+        }}
       >
-        <title>{props.title}</title>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.32} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <motion.path
-          d={area}
-          fill={`url(#${gradId})`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={reduced ? { duration: 0 } : { delay: 0.35, duration: 0.5 }}
+        <RollingNumber
+          value={last}
+          format={(n) => formatMoney(n)}
+          variant="h3"
+          delay={step(1)}
+          sx={{ color: toneInk(tone, theme), minWidth: 0, overflowWrap: "anywhere" }}
         />
-        <motion.path
-          d={line}
-          fill="none"
-          stroke={color}
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={reduced ? { duration: 0 } : { duration: 0.9, ease: "easeOut" }}
+        {diff !== 0 && (
+          <MotionBox
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={t({ ...spring, delay: drawDelay + drawDuration })}
+          >
+            <TonePill tone={diff > 0 ? "good" : "bad"}>
+              {diff > 0 ? "+" : "−"}
+              {formatMoney(Math.abs(diff))}
+              {diffPct !== 0 ? ` · ${diffPct > 0 ? "+" : ""}${diffPct}%` : ""}
+            </TonePill>
+          </MotionBox>
+        )}
+      </Box>
+
+      <Box sx={{ position: "relative" }}>
+        <Box
+          component="svg"
+          viewBox={`0 0 ${TREND_W} ${TREND_H}`}
+          preserveAspectRatio="none"
+          sx={{ width: "100%", height: TREND_H, display: "block", overflow: "visible" }}
+        >
+          <title>{props.title}</title>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.28} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <motion.g
+            initial={{ clipPath: "inset(0 100% 0 0)" }}
+            animate={{ clipPath: "inset(0 0% 0 0)" }}
+            transition={t({ duration: drawDuration, ease: EASE_OUT, delay: drawDelay })}
+          >
+            <path d={area} fill={`url(#${gradId})`} />
+          </motion.g>
+          <motion.path
+            d={line}
+            fill="none"
+            stroke={color}
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={t({ duration: drawDuration, ease: EASE_OUT, delay: drawDelay })}
+          />
+        </Box>
+        {/* El punto de hoy vive fuera del SVG estirado para seguir siendo redondo. */}
+        <MotionBox
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={t({ ...spring, delay: drawDelay + drawDuration * 0.9 })}
+          sx={{
+            position: "absolute",
+            left: `${(end.x / TREND_W) * 100}%`,
+            top: `${(end.y / TREND_H) * 100}%`,
+            width: 12,
+            height: 12,
+            ml: "-6px",
+            mt: "-6px",
+            borderRadius: "var(--radius-pill)",
+            backgroundColor: TOKENS.card,
+            boxShadow: `inset 0 0 0 3px ${color}`,
+          }}
+          aria-hidden
         />
       </Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5 }}>
-        {props.points.map((p, i) => (
-          // El rango puede abarcar más de un año, así que "sept" se repite:
-          // la posición es lo único único aquí.
-          // biome-ignore lint/suspicious/noArrayIndexKey: las etiquetas de mes se repiten
-          <Typography key={`${p.label}-${i}`} variant="caption" sx={{ color: "text.disabled" }}>
-            {p.label}
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 1,
+          mt: 0.75,
+          pt: 0.75,
+          borderTop: `1px solid ${TOKENS.tintInk12}`,
+        }}
+      >
+        {axis.map((a, i) => (
+          <Typography
+            key={a.key}
+            variant="caption"
+            sx={{
+              color: i === axis.length - 1 ? "text.secondary" : "text.disabled",
+              fontWeight: i === axis.length - 1 ? 700 : 500,
+              minWidth: 0,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {a.label}
           </Typography>
         ))}
       </Box>
@@ -341,16 +499,43 @@ export function TrendWidget({ props }: { props: WidgetProps["trend"] }) {
 
 export function TimelineWidget({ props }: { props: WidgetProps["timeline"] }) {
   const theme = useTheme();
+  const done = props.steps.filter((s) => s.done).length;
+  const total = props.steps.length;
 
   return (
     <WidgetShell>
-      <WidgetTitle>{props.title}</WidgetTitle>
+      <Box
+        sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}
+      >
+        <WidgetTitle>{props.title}</WidgetTitle>
+        {done > 0 && (
+          <Typography
+            variant="subtitle1"
+            sx={{
+              color: done === total ? TOKENS.goodInk : "text.primary",
+              flexShrink: 0,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {done}
+            <Box component="span" sx={{ color: "text.disabled", fontWeight: 500 }}>
+              {" "}
+              / {total}
+            </Box>
+          </Typography>
+        )}
+      </Box>
       <Milestones steps={props.steps} dotColor={theme.palette.primary.main} />
     </WidgetShell>
   );
 }
 
-/** Preguntas de seguimiento de un toque: el chat sin chat. */
+/**
+ * Preguntas de seguimiento de un toque: el chat sin chat. Son botones de
+ * verdad (teclado, lector de pantalla) y el relleno del chip que se está
+ * eligiendo se desliza de uno a otro con `layoutId`, así que al enviar se ve
+ * cuál se tocó aunque el lienzo ya esté pensando.
+ */
 export function ChipsWidget({
   props,
   onAsk,
@@ -359,42 +544,77 @@ export function ChipsWidget({
   onAsk: (q: string) => void;
 }) {
   const { t } = useMotionPrefs();
+  const uid = useId();
+  const [hot, setHot] = useState<number | null>(null);
+  const [sent, setSent] = useState<number | null>(null);
+  const active = sent ?? hot;
 
   return (
-    <Box>
+    <WidgetShell variant="bare" pad={0}>
       {props.label && (
         <Box sx={{ mb: 1 }}>
           <Label>{props.label}</Label>
         </Box>
       )}
       <Stagger sx={{ display: "flex", flexWrap: "wrap", gap: 1 }} delay={0.05}>
-        {props.options.map((opt) => (
-          // Botón de verdad, no un div con onTap: estos chips son la forma
-          // principal de seguir la conversación y tienen que responder a
-          // teclado y anunciarse como controles.
-          <MotionButton
-            key={opt}
-            type="button"
-            variants={staggerItem}
-            whileTap={{ scale: 0.95 }}
-            transition={t(spring)}
-            onClick={() => onAsk(opt)}
-            className="liquid-glass"
-            sx={{
-              px: 1.75,
-              minHeight: "var(--tap-min)",
-              display: "flex",
-              alignItems: "center",
-              borderRadius: "var(--radius-pill)",
-              cursor: "pointer",
-            }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {opt}
-            </Typography>
-          </MotionButton>
-        ))}
+        {props.options.map((opt, i) => {
+          const on = active === i;
+          const fired = sent === i;
+          return (
+            <MotionButton
+              key={opt}
+              type="button"
+              variants={staggerItem}
+              whileTap={{ scale: 0.95 }}
+              transition={t(spring)}
+              onClick={() => {
+                setSent(i);
+                onAsk(opt);
+              }}
+              onPointerEnter={() => setHot(i)}
+              onPointerLeave={() => setHot((v) => (v === i ? null : v))}
+              onFocus={() => setHot(i)}
+              onBlur={() => setHot((v) => (v === i ? null : v))}
+              className="paper"
+              sx={{
+                position: "relative",
+                px: 1.75,
+                minHeight: "var(--tap-min)",
+                display: "flex",
+                alignItems: "center",
+                borderRadius: "var(--radius-pill)",
+                maxWidth: "100%",
+              }}
+            >
+              {on && (
+                <MotionBox
+                  layoutId={`${uid}-chip`}
+                  transition={t(spring)}
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: fired ? TOKENS.ink : TOKENS.sunken,
+                  }}
+                  aria-hidden
+                />
+              )}
+              <Typography
+                variant="body2"
+                sx={{
+                  position: "relative",
+                  fontWeight: 600,
+                  color: fired ? TOKENS.onDark : "text.primary",
+                  overflowWrap: "anywhere",
+                  transition: "color var(--dur-micro) var(--ease-ios)",
+                }}
+              >
+                {opt}
+              </Typography>
+            </MotionButton>
+          );
+        })}
       </Stagger>
-    </Box>
+    </WidgetShell>
   );
 }

@@ -14,7 +14,13 @@
  * un turno, y las opciones llevan un `ask` que el router de abajo enruta al
  * paso siguiente.
  */
-import { analyzeSpending, getBalance, listGoals, listProducts } from "@camaleon/db/queries";
+import {
+  analyzeSpending,
+  getBalance,
+  getCreditUsage,
+  listGoals,
+  listProducts,
+} from "@camaleon/db/queries";
 import type { McpActivity, Widget } from "@camaleon/shared";
 import {
   autoDetalle,
@@ -34,6 +40,7 @@ import {
   viajePaso3,
   viajePlan,
 } from "./flows";
+import { computeHealthScore } from "./health-score";
 
 export type DemoStep =
   | {
@@ -178,6 +185,17 @@ export async function homeScript(userId: string): Promise<DemoScript> {
   const libre = bal.monthlyIncome - fijos - aportacion - colchon;
   const disponibleHoy = Math.max(0, Math.round(libre / 30));
 
+  const creditMonthly = await getCreditUsage(userId, 3);
+  const health = computeHealthScore({
+    userId,
+    monthlyIncome: bal.monthlyIncome,
+    monthlySurplus: bal.monthlySurplus,
+    balance: bal.balance,
+    monthlySpend: bal.monthlySpend,
+    fixedMonthly: fijos,
+    creditMonthly,
+  });
+
   const steps: DemoStep[] = [
     { kind: "status", phase: "thinking", label: "Revisando tu cuenta…", wait: 200 },
     {
@@ -252,31 +270,11 @@ export async function homeScript(userId: string): Promise<DemoScript> {
         id: "home-health",
         type: "health",
         props: {
-          score: 82,
-          status: "Sólida",
-          caption: "Mejor que hace 3 meses: +6 puntos desde julio.",
-          factors: [
-            {
-              label: "Superávit",
-              status: `Fuerte · ${money(bal.monthlySurplus)} (${Math.round((bal.monthlySurplus / bal.monthlyIncome) * 100)}%)`,
-              pct: 85,
-              tone: "good",
-            },
-            {
-              label: "Colchón",
-              status: `A medias · ${(bal.balance / bal.monthlySpend).toFixed(1)} de 3 meses`,
-              pct: Math.min(100, Math.round((bal.balance / bal.monthlySpend / 3) * 100)),
-              tone: "warn",
-            },
-            { label: "Deudas", status: "Sin deudas", pct: 100, tone: "good" },
-            {
-              label: "Gasto fijo",
-              status: `Alto · renta ${Math.round((8_500 / bal.monthlyIncome) * 100)}% del ingreso`,
-              pct: 45,
-              tone: "warn",
-            },
-          ],
-          history: [74, 75, 77, 78, 80, 82],
+          score: health.score,
+          status: health.status,
+          caption: health.caption,
+          factors: health.factors,
+          history: health.history,
           ask: { label: "¿Cómo subo mi salud?", ask: "¿A dónde se me va el dinero?" },
         },
       },

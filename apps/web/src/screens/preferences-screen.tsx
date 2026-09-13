@@ -66,14 +66,14 @@ export function PreferencesScreen() {
 
   if (loading) {
     return (
-      <ScreenShell title="Ajustes">
+      <ScreenShell title="Preferencias">
         <ScreenNote>Cargando tus preferencias…</ScreenNote>
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title="Ajustes">
+    <ScreenShell title="Preferencias">
       <ScreenSection label="Modo de interfaz">
         <Segmented
           value={uiMode}
