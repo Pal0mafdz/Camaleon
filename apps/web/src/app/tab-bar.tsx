@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { Clock, House, Settings, Sparkles, Target } from "lucide-react";
+import { Clock, House, Settings, Sparkles, Target, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { type Tab, useCanvas } from "../canvas/store";
 import { MotionBox, MotionButton, spring, useMotionPrefs } from "../canvas/widgets/shell";
@@ -21,6 +21,7 @@ const TABS: { id: Tab; label: string; Icon: typeof House }[] = [
   { id: "inicio", label: "Inicio", Icon: House },
   { id: "asesor", label: "Asesor", Icon: Sparkles },
   { id: "metas", label: "Metas", Icon: Target },
+  { id: "cuenta", label: "Cuenta", Icon: Wallet },
   { id: "historial", label: "Historial", Icon: Clock },
   { id: "ajustes", label: "Ajustes", Icon: Settings },
 ];

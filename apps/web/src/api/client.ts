@@ -33,6 +33,17 @@ export type NewGoal = {
 };
 
 /** Snapshot de un lienzo guardado por el agente. Se puede volver a pintar. */
+export type Balance = {
+  userId: string;
+  name: string;
+  balance: number;
+  monthlyIncome: number;
+  monthlySpend: number;
+  monthlySurplus: number;
+};
+
+export type FundGoalResult = { goal: Goal; balance: number };
+
 export type Plan = {
   id: number;
   userId: string;
@@ -132,6 +143,18 @@ export function patchGoal(
   patch: { userId: string; status: GoalStatus },
 ): Promise<Goal> {
   return request<Goal>(`/goals/${id}`, body("PATCH", patch));
+}
+
+export function getAccountBalance(userId: string): Promise<Balance> {
+  return request<Balance>(`/account/${userId}`);
+}
+
+export function depositToAccount(amount: number): Promise<{ balance: number }> {
+  return request<{ balance: number }>("/account/deposit", body("POST", { amount }));
+}
+
+export function fundGoal(goalId: number, amount: number): Promise<FundGoalResult> {
+  return request<FundGoalResult>(`/goals/${goalId}/fund`, body("POST", { amount }));
 }
 
 export function listPlans(userId: string): Promise<Plan[]> {

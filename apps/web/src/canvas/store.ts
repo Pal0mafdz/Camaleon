@@ -1,8 +1,8 @@
 import type { AgentStatus, McpActivity, Widget } from "@camaleon/shared";
 import { create } from "zustand";
 
-/** Las cinco pestañas de la app. `inicio` y `asesor` comparten el lienzo. */
-export type Tab = "inicio" | "asesor" | "metas" | "historial" | "ajustes";
+/** Las seis pestañas de la app. `inicio` y `asesor` comparten el lienzo. */
+export type Tab = "inicio" | "asesor" | "metas" | "cuenta" | "historial" | "ajustes";
 
 type CanvasState = {
   widgets: Widget[];

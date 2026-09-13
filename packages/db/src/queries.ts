@@ -94,6 +94,66 @@ export async function updateUserPreferences(
   return row ?? null;
 }
 
+/**
+ * Abona `amount` al saldo del usuario y deja un movimiento registrado.
+ * El incremento es atómico en SQL (`balance = balance + amount`), no leer-y-sumar.
+ */
+export async function depositToBalance(userId: string, amount: number, merchant = "Abono manual") {
+  const [user] = await db
+    .update(users)
+    .set({ balance: sql`${users.balance} + ${amount}` })
+    .where(eq(users.id, userId))
+    .returning();
+  if (!user) return null;
+
+  await db.insert(transactions).values({
+    userId,
+    date: new Date(),
+    merchant,
+    category: "abono",
+    amount,
+    method: "transferencia",
+  });
+
+  return user;
+}
+
+/**
+ * Transfiere `amount` del saldo del usuario al `currentAmount` de una de sus
+ * metas, en una sola transacción de BD. Devuelve `null` si la meta no existe,
+ * no es del usuario, o el saldo no alcanza — nunca deja saldo negativo.
+ */
+export async function fundGoal(userId: string, goalId: number, amount: number) {
+  return db.transaction(async (tx) => {
+    const [user] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || user.balance < amount) return null;
+
+    const [goal] = await tx
+      .update(goals)
+      .set({ currentAmount: sql`${goals.currentAmount} + ${amount}` })
+      .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
+      .returning();
+    if (!goal) return null;
+
+    const [updatedUser] = await tx
+      .update(users)
+      .set({ balance: sql`${users.balance} - ${amount}` })
+      .where(eq(users.id, userId))
+      .returning();
+
+    await tx.insert(transactions).values({
+      userId,
+      date: new Date(),
+      merchant: `Meta: ${goal.title}`,
+      category: "meta",
+      amount: -amount,
+      method: "transferencia",
+    });
+
+    return { goal, balance: updatedUser?.balance ?? user.balance - amount };
+  });
+}
+
 /** Saldo, ingreso mensual y quema promedio de los últimos 3 meses. */
 export async function getBalance(userId: string) {
   const user = await getUser(userId);
@@ -106,7 +166,15 @@ export async function getBalance(userId: string) {
       ingresos: sql<number>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0)`,
     })
     .from(transactions)
-    .where(and(eq(transactions.userId, userId), gte(transactions.date, since)));
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        gte(transactions.date, since),
+        // Abonos y transferencias a metas mueven saldo entre bolsillos propios:
+        // no son ingreso ni gasto real, y contarlos infla ambos promedios.
+        sql`${transactions.category} not in ('abono', 'meta')`,
+      ),
+    );
 
   const gastoMensual = Math.round((agg?.gastos ?? 0) / 3);
   const ingresoMensual = Math.round((agg?.ingresos ?? 0) / 3);
@@ -119,6 +187,25 @@ export async function getBalance(userId: string) {
     monthlySpend: gastoMensual,
     monthlySurplus: (ingresoMensual || user.monthlyIncome) - gastoMensual,
   };
+}
+
+/** Gasto mensual promedio pagado con crédito: proxy de uso de deuda revolvente por usuario. */
+export async function getCreditUsage(userId: string, months = 3) {
+  const since = monthsAgo(months);
+  const [row] = await db
+    .select({
+      total: sql<number>`coalesce(sum(case when ${transactions.amount} < 0 then -${transactions.amount} else 0 end), 0)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        gte(transactions.date, since),
+        eq(transactions.method, "credito"),
+      ),
+    );
+
+  return Math.round((row?.total ?? 0) / months);
 }
 
 /** Inserta movimientos en lotes de 100 (mismo límite que usa `seed.ts`). */

@@ -5,6 +5,9 @@ import {
   createSession,
   createUser,
   deleteSession,
+  depositToBalance,
+  fundGoal,
+  getBalance,
   getConversation,
   getUser,
   getUserByEmail,
@@ -358,11 +361,14 @@ app.patch("/preferences/:userId", requireAuth, async (c) => {
 /* Metas, planes y conversaciones — persistencia REST                  */
 /* ------------------------------------------------------------------ */
 
-app.get("/goals/:userId", async (c) => c.json(await listGoals(c.req.param("userId"))));
+app.get("/goals/:userId", requireAuth, async (c) => {
+  const paramUserId = c.req.param("userId");
+  if (paramUserId !== c.get("userId")) return c.json({ error: "No autorizado" }, 403);
+  return c.json(await listGoals(paramUserId));
+});
 
-app.post("/goals", async (c) => {
+app.post("/goals", requireAuth, async (c) => {
   const body = (await c.req.json()) as {
-    userId?: string;
     title?: string;
     targetAmount?: number;
     monthlyAmount?: number;
@@ -372,7 +378,7 @@ app.post("/goals", async (c) => {
     return c.json({ error: "Faltan título, monto objetivo o aportación mensual" }, 400);
   }
   const goal = await createGoal({
-    userId: body.userId ?? "karla",
+    userId: c.get("userId"),
     title: body.title,
     targetAmount: body.targetAmount,
     monthlyAmount: body.monthlyAmount,
@@ -381,20 +387,56 @@ app.post("/goals", async (c) => {
   return c.json(goal, 201);
 });
 
-app.patch("/goals/:id", async (c) => {
+app.patch("/goals/:id", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const body = (await c.req.json()) as {
-    userId?: string;
     status?: "activa" | "pausada" | "completada";
     currentAmount?: number;
     monthlyAmount?: number;
   };
-  const goal = await updateGoal(id, body.userId ?? "karla", {
+  const goal = await updateGoal(id, c.get("userId"), {
     status: body.status,
     currentAmount: body.currentAmount,
     monthlyAmount: body.monthlyAmount,
   });
   return goal ? c.json(goal) : c.json({ error: "Meta no encontrada" }, 404);
+});
+
+app.post("/goals/:id/fund", requireAuth, async (c) => {
+  const id = Number(c.req.param("id"));
+  const body = (await c.req.json().catch(() => ({}))) as { amount?: number };
+  const amount = body.amount;
+  if (!amount || amount <= 0) {
+    return c.json({ error: "El monto debe ser mayor a cero" }, 400);
+  }
+
+  const result = await fundGoal(c.get("userId"), id, amount);
+  if (!result) {
+    return c.json({ error: "Meta no encontrada o saldo insuficiente" }, 400);
+  }
+  return c.json(result);
+});
+
+/* ------------------------------------------------------------------ */
+/* Cuenta — saldo y abonos                                              */
+/* ------------------------------------------------------------------ */
+
+app.get("/account/:userId", requireAuth, async (c) => {
+  const paramUserId = c.req.param("userId");
+  if (paramUserId !== c.get("userId")) return c.json({ error: "No autorizado" }, 403);
+  const balance = await getBalance(paramUserId);
+  return balance ? c.json(balance) : c.json({ error: "Usuario no encontrado" }, 404);
+});
+
+app.post("/account/deposit", requireAuth, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { amount?: number };
+  const amount = body.amount;
+  if (!amount || amount <= 0) {
+    return c.json({ error: "El monto debe ser mayor a cero" }, 400);
+  }
+
+  const user = await depositToBalance(c.get("userId"), amount);
+  return user ? c.json({ balance: user.balance }) : c.json({ error: "Usuario no encontrado" }, 404);
 });
 
 app.get("/plans/:userId", async (c) => c.json(await listPlans(c.req.param("userId"))));

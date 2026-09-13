@@ -91,7 +91,7 @@ export function HistorialScreen() {
   const rows = list ?? [];
 
   return (
-    <ScreenShell title="Historial">
+    <ScreenShell title="Tus movimientos">
       <ScreenLede>Toca una charla para volver a pintar su lienzo y seguir preguntando.</ScreenLede>
 
       <AnimatePresence>

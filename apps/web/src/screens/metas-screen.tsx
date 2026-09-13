@@ -103,7 +103,7 @@ export function MetasScreen() {
   const list = goals ?? [];
 
   return (
-    <ScreenShell title="Metas">
+    <ScreenShell title="Tus metas">
       <ScreenLede>Lo que estás juntando y los planes que guardaste con el asesor.</ScreenLede>
 
       <AnimatePresence>
