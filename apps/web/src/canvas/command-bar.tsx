@@ -2,10 +2,16 @@ import Box from "@mui/material/Box";
 import InputBase from "@mui/material/InputBase";
 import Typography from "@mui/material/Typography";
 import { ArrowUp, Mic, Square } from "lucide-react";
-import { AnimatePresence } from "motion/react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { TOKENS } from "../app/theme";
-import { MotionButton, MotionForm, spring, TapTarget, useMotionPrefs } from "./widgets/shell";
+import { EASE_IOS, TOKENS } from "../app/theme";
+import {
+  MotionBox,
+  MotionButton,
+  MotionForm,
+  spring,
+  TapTarget,
+  useMotionPrefs,
+} from "./widgets/shell";
 
 // ─── Web Speech API (tipado mínimo: lib.dom aún no lo incluye) ───────────────
 
@@ -95,7 +101,10 @@ export function CommandBar({
   function submit(e: FormEvent) {
     e.preventDefault();
     const q = text.trim();
-    if (!q || busy) return;
+    if (!q) return;
+    // Enviar con el agente ocupado interrumpe el turno anterior: una pregunta
+    // escrita nunca se pierde en silencio.
+    if (busy) onStop();
     recRef.current?.stop();
     setText("");
     navigator.vibrate?.(10);
@@ -105,32 +114,52 @@ export function CommandBar({
   return (
     <MotionForm
       onSubmit={submit}
-      layout
       initial={{ y: 80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={t({ ...spring, delay: 0.2 })}
-      className="liquid-glass-solid"
+      className="paper-floating"
       sx={{
         position: "absolute",
         left: "calc(var(--gutter) + var(--safe-left))",
         right: "calc(var(--gutter) + var(--safe-right))",
         bottom: "calc(var(--gutter) + var(--safe-bottom) + var(--dock-offset))",
         zIndex: 30,
-        borderRadius: "var(--radius-pill)",
+        minHeight: "var(--command-bar-h)",
+        // Una tarjeta más, no una píldora: mismo radio que todo el catálogo.
+        borderRadius: "var(--radius-l)",
+        overflow: "hidden",
         display: "flex",
         alignItems: "center",
         gap: 0.5,
         pl: 0.75,
         pr: 0.75,
         py: 0.75,
-        // El anillo de foco se pinta en la barra completa, no en el input:
-        // el campo no tiene borde propio y el usuario debe ver dónde escribe.
         transition: "box-shadow var(--dur-standard) var(--ease-ios)",
         "&:focus-within": {
-          boxShadow: `${TOKENS.hairline}, ${TOKENS.elev3}, 0 0 0 3px ${TOKENS.tintRed32}`,
+          boxShadow: `${TOKENS.glossLight}, ${TOKENS.hairline}, ${TOKENS.elev3}, 0 0 0 3px ${TOKENS.tintRed32}`,
         },
       }}
     >
+      {/* Mientras el agente trabaja, una línea roja recorre el canto superior:
+          la terminal está procesando la tarjeta. */}
+      {busy && !reduced && (
+        <MotionBox
+          aria-hidden
+          initial={{ x: "-100%" }}
+          animate={{ x: "100%" }}
+          transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.6, ease: EASE_IOS }}
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            background: `linear-gradient(90deg, transparent 0%, ${TOKENS.red} 40%, ${TOKENS.red} 60%, transparent 100%)`,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {supportsVoice && (
         <MotionButton
           type="button"
@@ -138,13 +167,17 @@ export function CommandBar({
           whileTap={{ scale: 0.9 }}
           animate={loop(listening ? { scale: [1, 1.12, 1] } : { scale: 1 })}
           transition={
-            listening && !reduced ? { repeat: Number.POSITIVE_INFINITY, duration: 1.1 } : t(spring)
+            listening && !reduced
+              ? { repeat: Number.POSITIVE_INFINITY, duration: 1.1, ease: EASE_IOS }
+              : t(spring)
           }
           aria-label={listening ? "Detener dictado" : "Dictar"}
           aria-pressed={listening}
           sx={{
             ...TapTarget,
-            borderRadius: "var(--radius-pill)",
+            borderRadius: "var(--radius-s)",
+            transition:
+              "color var(--dur-standard) var(--ease-ios), background-color var(--dur-standard) var(--ease-ios)",
             color: listening ? "primary.main" : "text.disabled",
             backgroundColor: listening ? TOKENS.tintRed8 : "transparent",
           }}
@@ -168,82 +201,114 @@ export function CommandBar({
           flex: 1,
           minWidth: 0,
           pl: supportsVoice ? 0.5 : 1.5,
-          fontSize: 15,
+          typography: "body1",
           color: "text.primary",
           // El campo en sí también es un objetivo táctil: si solo mide el alto
           // de la línea, tocar un par de píxeles arriba del texto no enfoca.
           "& input": { padding: 0, minHeight: "var(--tap-min)" },
+          // El anillo lo pinta la barra completa (`:focus-within`); el input
+          // no repite el suyo o se ven dos anillos concentricos.
+          "& input:focus-visible": { boxShadow: "none" },
           "& input::placeholder": { color: "text.disabled", opacity: 1 },
         }}
       />
 
-      <AnimatePresence mode="popLayout" initial={false}>
-        {busy ? (
-          <MotionButton
-            key="stop"
-            type="button"
-            onClick={onStop}
-            initial={{ scale: 0, rotate: -90 }}
-            animate={{ scale: 1, rotate: 0 }}
-            exit={{ scale: 0, rotate: 90 }}
-            whileTap={{ scale: 0.9 }}
-            transition={t(spring)}
-            aria-label="Detener"
-            sx={{
-              ...TapTarget,
-              borderRadius: "var(--radius-pill)",
-              // Neutral a propósito: detener es el contrapeso del botón rojo.
-              backgroundColor: TOKENS.tintInk8,
-              color: "text.primary",
-            }}
-          >
-            <Square size={14} fill="currentColor" />
-          </MotionButton>
-        ) : (
-          <MotionButton
-            key="send"
-            type="submit"
-            disabled={!ready}
-            initial={{ scale: 0, rotate: -90 }}
-            animate={{ scale: 1, rotate: 0 }}
-            exit={{ scale: 0, rotate: 90 }}
-            whileTap={ready ? { scale: 0.9 } : undefined}
-            transition={t(spring)}
-            aria-label="Enviar"
-            sx={{
-              ...TapTarget,
-              borderRadius: "var(--radius-pill)",
-              cursor: ready ? "pointer" : "default",
-              transition: "background-color var(--dur-standard) var(--ease-ios)",
-              // El área tocable NO cambia con el estado; solo el disco interior.
-              backgroundColor: "transparent",
-              color: ready ? TOKENS.onDark : TOKENS.inkFaint,
-              "& > span": {
-                width: 36,
-                height: 36,
-                borderRadius: "var(--radius-pill)",
-                display: "grid",
-                placeItems: "center",
-                transition:
-                  "background-color var(--dur-standard) var(--ease-ios), transform var(--dur-standard) var(--ease-ios)",
-                backgroundColor: ready ? TOKENS.red : TOKENS.tintInk8,
-                transform: ready ? "scale(1)" : "scale(0.88)",
-              },
-            }}
-          >
-            <span>
-              <ArrowUp size={18} strokeWidth={2.6} />
-            </span>
-          </MotionButton>
-        )}
-      </AnimatePresence>
+      <SendStopButton busy={busy} ready={ready} onStop={onStop} />
     </MotionForm>
+  );
+}
+
+/**
+ * Enviar ↔ detener es UN botón que se transforma, no dos que se intercambian.
+ * El disco cambia de rojo a tinta, la flecha gira y se encoge mientras el
+ * cuadrado gira y crece desde el centro; mientras el agente trabaja, un anillo
+ * fino recorre el borde del disco (es el único bucle: se apaga al terminar y
+ * con movimiento reducido).
+ */
+function SendStopButton({
+  busy,
+  ready,
+  onStop,
+}: {
+  busy: boolean;
+  ready: boolean;
+  onStop: () => void;
+}) {
+  const { t, reduced } = useMotionPrefs();
+  const active = busy || ready;
+
+  return (
+    <MotionButton
+      type={busy ? "button" : "submit"}
+      onClick={busy ? onStop : undefined}
+      disabled={!busy && !ready}
+      whileTap={active ? { scale: 0.9 } : undefined}
+      transition={t(spring)}
+      aria-label={busy ? "Detener" : "Enviar"}
+      sx={{
+        ...TapTarget,
+        borderRadius: "var(--radius-s)",
+        cursor: active ? "pointer" : "default",
+        // La tecla lleva la marca desde el primer frame: rojo sobre tinte en
+        // reposo, blanco sobre rojo con texto, blanco sobre tinta al detener.
+        color: active ? TOKENS.onDark : TOKENS.red,
+      }}
+    >
+      {/* El área tocable NO cambia con el estado; solo la tecla interior. */}
+      <MotionBox
+        animate={{
+          scale: active ? 1 : 0.92,
+          backgroundColor: busy ? TOKENS.ink : ready ? TOKENS.red : TOKENS.tintRed8,
+        }}
+        transition={t(spring)}
+        sx={{
+          position: "relative",
+          width: 36,
+          height: 36,
+          borderRadius: "var(--radius-s)",
+          display: "grid",
+          placeItems: "center",
+          overflow: "hidden",
+          boxShadow: active ? TOKENS.glossInk : undefined,
+        }}
+      >
+        {busy && !reduced && (
+          <MotionBox
+            aria-hidden
+            className="spin-ring"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, rotate: 360 }}
+            transition={{
+              opacity: { duration: 0.2 },
+              rotate: { repeat: Number.POSITIVE_INFINITY, duration: 1.4, ease: "linear" },
+            }}
+            sx={{ position: "absolute", inset: 0, borderRadius: "var(--radius-s)" }}
+          />
+        )}
+        <MotionBox
+          aria-hidden
+          animate={{ scale: busy ? 0.4 : 1, rotate: busy ? -90 : 0, opacity: busy ? 0 : 1 }}
+          transition={t(spring)}
+          sx={{ position: "absolute", display: "grid", placeItems: "center" }}
+        >
+          <ArrowUp size={18} strokeWidth={2.6} />
+        </MotionBox>
+        <MotionBox
+          aria-hidden
+          animate={{ scale: busy ? 1 : 0.4, rotate: busy ? 0 : 90, opacity: busy ? 1 : 0 }}
+          transition={t(spring)}
+          sx={{ position: "absolute", display: "grid", placeItems: "center" }}
+        >
+          <Square size={13} fill="currentColor" />
+        </MotionBox>
+      </MotionBox>
+    </MotionButton>
   );
 }
 
 /** Sugerencias que aparecen antes de la primera pregunta. */
 export function Suggestions({ items, onAsk }: { items: string[]; onAsk: (q: string) => void }) {
-  const { t } = useMotionPrefs();
+  const { t, step } = useMotionPrefs();
 
   return (
     <Box
@@ -251,7 +316,8 @@ export function Suggestions({ items, onAsk }: { items: string[]; onAsk: (q: stri
         position: "absolute",
         left: "calc(var(--gutter) + var(--safe-left))",
         right: "calc(var(--gutter) + var(--safe-right))",
-        bottom: "calc(var(--gutter) + var(--safe-bottom) + var(--dock-offset) + 68px)",
+        bottom:
+          "calc(var(--gutter) * 2 + var(--safe-bottom) + var(--dock-offset) + var(--command-bar-h))",
         zIndex: 29,
         display: "flex",
         flexWrap: "wrap",
@@ -264,19 +330,22 @@ export function Suggestions({ items, onAsk }: { items: string[]; onAsk: (q: stri
           key={q}
           type="button"
           onClick={() => onAsk(q)}
-          initial={{ opacity: 0, y: 14, filter: "blur(6px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={t({ ...spring, delay: 0.35 + i * 0.08 })}
+          initial={{ opacity: 0, y: 14, rotateZ: i % 2 ? 1.5 : -1.5, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, rotateZ: 0, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+          transition={t({ ...spring, delay: 0.35 + step(i) * 2 })}
           whileTap={{ scale: 0.95 }}
-          className="liquid-glass-solid"
+          className="paper-floating"
           sx={{
-            borderRadius: "var(--radius-pill)",
+            borderRadius: "var(--radius-s)",
             px: 1.75,
             py: 1.25,
             minHeight: "var(--tap-min)",
             display: "flex",
             alignItems: "center",
             color: "text.secondary",
+            transition: "color var(--dur-micro) var(--ease-ios)",
+            "&:hover": { color: "text.primary" },
           }}
         >
           <Typography variant="caption" sx={{ fontWeight: 600 }}>

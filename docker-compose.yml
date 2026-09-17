@@ -1,0 +1,23 @@
+# Base de datos compartida del equipo: cada quien la levanta en su propia
+# máquina y arranca con exactamente los mismos datos (Karla, Roberto,
+# productos, población sintética de peers — ver packages/db/src/seed.ts).
+#
+# Uso:
+#   docker compose up -d db
+#   # apuntar DATABASE_URL=http://localhost:8080 en apps/server/.env
+#
+# Para resetear a los datos originales de fábrica:
+#   docker compose down -v db && docker compose up -d --build db
+services:
+  db:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile
+    container_name: camaleon-db
+    ports:
+      - "8080:8080"
+    volumes:
+      - camaleon-db-data:/var/lib/sqld
+
+volumes:
+  camaleon-db-data:

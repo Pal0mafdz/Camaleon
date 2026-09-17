@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { Sparkles } from "lucide-react";
-import { TOKENS } from "../app/theme";
+import { EASE_IOS, TOKENS } from "../app/theme";
 import { MotionBox, spring, springSoft, useMotionPrefs } from "./widgets/shell";
 
 /**
@@ -11,24 +11,41 @@ import { MotionBox, spring, springSoft, useMotionPrefs } from "./widgets/shell";
  */
 
 export function EmptyState({ greeting }: { greeting: string }) {
-  const { t } = useMotionPrefs();
+  const { t, step } = useMotionPrefs();
 
   return (
     <MotionBox
-      initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      transition={t({ ...springSoft, delay: 0.1 })}
-      sx={{ pt: 5, px: 0.5 }}
+      className="paper lacquer"
+      initial={{ opacity: 0, y: 28, rotateZ: -1.5, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, rotateZ: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, filter: "blur(6px)" }}
+      transition={t(springSoft)}
+      sx={{ borderRadius: "var(--radius-l)", p: 2.5, pt: 3, pb: 3, transformOrigin: "50% 100%" }}
     >
-      <Typography variant="h1" component="h1">
-        {greeting}
-      </Typography>
-      <Typography variant="h1" component="p" sx={{ color: "text.secondary" }}>
-        ¿qué quieres lograr?
-      </Typography>
-      <Typography variant="body1" sx={{ color: "text.disabled", mt: 2.5, maxWidth: "30ch" }}>
-        Esta app no tiene pantallas. Se construye sola, con tu dinero y tu pregunta.
-      </Typography>
+      {[
+        <Typography key="greeting" variant="h2" component="h1" sx={{ overflowWrap: "anywhere" }}>
+          {greeting}
+        </Typography>,
+        <Typography key="ask" variant="h2" component="p" sx={{ color: "text.secondary" }}>
+          ¿qué quieres lograr?
+        </Typography>,
+        <Typography
+          key="body"
+          variant="body1"
+          sx={{ color: "text.secondary", mt: 2, maxWidth: "34ch" }}
+        >
+          Esta app no tiene pantallas. Se construye sola, con tu dinero y tu pregunta.
+        </Typography>,
+      ].map((line, i) => (
+        <MotionBox
+          key={line.key}
+          initial={{ opacity: 0, y: 14, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={t({ ...springSoft, delay: 0.12 + step(i) * 2 })}
+        >
+          {line}
+        </MotionBox>
+      ))}
     </MotionBox>
   );
 }
@@ -36,42 +53,50 @@ export function EmptyState({ greeting }: { greeting: string }) {
 /**
  * Lo que se ve mientras el agente arma el primer lienzo. Sin esto la app abre
  * en blanco y se siente rota justo en el primer segundo, que es el que decide.
- * Las alturas imitan la silueta real del inicio: saldo grande, salud, gasto.
+ *
+ * No son tarjetas falsas: son HUECOS en la mesa (`--surface-sunken`) con la
+ * silueta real del inicio —tarjeta roja, salud, gasto— que las tarjetas van a
+ * cubrir al repartirse. El primero es el sitio de la tarjeta roja: respira en
+ * granate diluido, más lento y más hondo.
  */
 export function BootSkeleton() {
   const { reduced, t } = useMotionPrefs();
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 0.5 }} aria-hidden>
-      {[190, 132, 108].map((h, i) => (
+      {[
+        { h: 236, ingot: true },
+        { h: 132, ingot: false },
+        { h: 108, ingot: false },
+      ].map(({ h, ingot }, i) => (
         <MotionBox
           key={h}
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={t({ ...springSoft, delay: 0.06 * i })}
+          exit={{ opacity: 0, scale: 0.985 }}
+          transition={t({ ...springSoft, delay: TOKENS.stagger * i })}
           sx={{
             height: h,
             borderRadius: "var(--radius-l)",
             position: "relative",
             overflow: "hidden",
-            backgroundColor: TOKENS.card,
-            boxShadow: `${TOKENS.hairline}, ${TOKENS.elev1}`,
+            backgroundColor: ingot ? TOKENS.tintRed8 : TOKENS.sunken,
+            boxShadow: `inset 0 1px 2px ${TOKENS.tintInk5}`,
           }}
         >
           {!reduced && (
             <MotionBox
-              initial={{ x: "-120%" }}
-              animate={{ x: "120%" }}
+              animate={{ opacity: [0, 1, 0] }}
               transition={{
                 repeat: Number.POSITIVE_INFINITY,
-                duration: 1.6,
+                duration: ingot ? 2.2 : 1.6,
                 delay: 0.12 * i,
-                ease: "easeInOut",
+                ease: EASE_IOS,
               }}
               sx={{
                 position: "absolute",
                 inset: 0,
-                background: `linear-gradient(100deg, transparent 20%, ${TOKENS.tintInk5} 50%, transparent 80%)`,
+                backgroundColor: ingot ? TOKENS.tintRed14 : TOKENS.well,
               }}
             />
           )}
@@ -83,27 +108,28 @@ export function BootSkeleton() {
 
 export function StatusPill({ label }: { label: string }) {
   const { t, loop, reduced } = useMotionPrefs();
-  const pulse = reduced ? undefined : { repeat: Number.POSITIVE_INFINITY, duration: 1.6 };
+  const pulse = reduced
+    ? undefined
+    : { repeat: Number.POSITIVE_INFINITY, duration: 1.6, ease: EASE_IOS };
 
   return (
     <MotionBox
-      layout
+      layout="position"
       role="status"
       aria-live="polite"
       initial={{ opacity: 0, y: 12, filter: "blur(6px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={t(spring)}
+      className="paper"
       sx={{
         alignSelf: "flex-start",
-        borderRadius: "var(--radius-pill)",
+        borderRadius: "var(--radius-s)",
         px: 1.75,
         py: 1,
         display: "flex",
         alignItems: "center",
         gap: 1,
-        backgroundColor: TOKENS.card,
-        boxShadow: `${TOKENS.hairline}, ${TOKENS.elev1}`,
       }}
     >
       <MotionBox
@@ -137,11 +163,18 @@ export function CanvasError({ message }: { message: string }) {
         borderRadius: "var(--radius-l)",
         p: 2,
         backgroundColor: TOKENS.card,
-        boxShadow: `inset 0 0 0 1px ${TOKENS.tintRed32}, ${TOKENS.elev1}`,
+        boxShadow: `${TOKENS.glossLight}, inset 0 0 0 1.5px ${TOKENS.tintRed32}, ${TOKENS.elev1}`,
       }}
     >
-      <Typography variant="body2" sx={{ color: TOKENS.badInk }}>
+      <Typography
+        variant="h6"
+        component="p"
+        sx={{ color: TOKENS.badInk, overflowWrap: "anywhere" }}
+      >
         {message}
+      </Typography>
+      <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+        Vuelve a preguntar; si sigue pasando, revisa tu conexión.
       </Typography>
     </MotionBox>
   );

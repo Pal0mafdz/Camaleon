@@ -8,17 +8,15 @@
  * respuestas interesantes: hay fugas de dinero detectables y margen real.
  */
 import { db } from "./index";
-import { goals, products, transactions, users } from "./schema";
-
-type Seed = {
-  merchant: string;
-  category: string;
-  amount: number;
-  method?: string;
-  recurring?: boolean;
-  /** Día del mes en el que cae. */
-  day: number;
-};
+import {
+  AGE_BANDS,
+  AGE_MULT,
+  BENCHMARK_CATEGORIES,
+  CATEGORY_PCT,
+  INCOME_BANDS,
+} from "./peer-bands";
+import { goals, peerBenchmarks, products, transactions, users } from "./schema";
+import { buildMonths, makeRandom, type Seed } from "./synthetic/rng";
 
 /** Cargos que se repiten idénticos cada mes. */
 const KARLA_FIJOS: Seed[] = [
@@ -125,78 +123,7 @@ const ROBERTO_VARIABLES: {
 ];
 
 /** PRNG determinista: el demo debe verse igual cada vez que se siembra. */
-function makeRandom(seed: number) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1_664_525 + 1_013_904_223) >>> 0;
-    return s / 0x1_0000_0000;
-  };
-}
-
 const rand = makeRandom(20_260_904);
-
-function pick(min: number, max: number) {
-  return Math.round((min + rand() * (max - min)) * 100) / 100;
-}
-
-type Row = typeof transactions.$inferInsert;
-
-function buildMonths(
-  userId: string,
-  fijos: Seed[],
-  variables: {
-    merchant: string;
-    category: string;
-    min: number;
-    max: number;
-    perMonth: number;
-    method?: string;
-  }[],
-  months: number,
-): Row[] {
-  const rows: Row[] = [];
-  const today = new Date();
-
-  for (let back = months - 1; back >= 0; back--) {
-    const base = new Date(today.getFullYear(), today.getMonth() - back, 1);
-    const daysInMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
-
-    for (const f of fijos) {
-      rows.push({
-        userId,
-        date: new Date(base.getFullYear(), base.getMonth(), Math.min(f.day, daysInMonth), 9, 30),
-        merchant: f.merchant,
-        category: f.category,
-        amount: f.amount,
-        method: f.method ?? "debito",
-        recurring: f.recurring ?? false,
-      });
-    }
-
-    for (const v of variables) {
-      for (let i = 0; i < v.perMonth; i++) {
-        const day = 1 + Math.floor(rand() * daysInMonth);
-        rows.push({
-          userId,
-          date: new Date(
-            base.getFullYear(),
-            base.getMonth(),
-            day,
-            8 + Math.floor(rand() * 13),
-            Math.floor(rand() * 60),
-          ),
-          merchant: v.merchant,
-          category: v.category,
-          amount: -pick(v.min, v.max),
-          method: v.method ?? "debito",
-          recurring: false,
-        });
-      }
-    }
-  }
-
-  return rows.sort((a, b) => (a.date as Date).getTime() - (b.date as Date).getTime());
-}
 
 const PRODUCTS: (typeof products.$inferInsert)[] = [
   {
@@ -285,40 +212,111 @@ const PRODUCTS: (typeof products.$inferInsert)[] = [
   },
 ];
 
+/** Password compartida de las cuentas demo. Nada de esto es seguro, es un hackathon. */
+const DEMO_PASSWORD = "banorte123";
+
+/**
+ * Población sintética para "comparado con gente como tú".
+ *
+ * En vez de guardar miles de perfiles con su historial completo, se genera
+ * la muestra en memoria y solo se guardan los percentiles (p25/p50/p75) por
+ * banda de edad + ingreso + categoría. Es la tabla `peer_benchmarks`: 180
+ * filas (5 edades × 4 ingresos × 9 categorías), no una base de datos de
+ * gente inventada.
+ */
+
+const PROFILES_PER_BAND = 400;
+
+function percentile(sorted: number[], p: number): number {
+  const idx = Math.min(sorted.length - 1, Math.floor(p * sorted.length));
+  return Math.round(sorted[idx] ?? 0);
+}
+
+type CategorySamples = Record<(typeof BENCHMARK_CATEGORIES)[number], number[]>;
+
+function buildPeerBenchmarks(rand: () => number): (typeof peerBenchmarks.$inferInsert)[] {
+  const rows: (typeof peerBenchmarks.$inferInsert)[] = [];
+
+  for (const ageBand of AGE_BANDS) {
+    for (const incomeBandDef of INCOME_BANDS) {
+      const min = incomeBandDef.min;
+      const max = Number.isFinite(incomeBandDef.max) ? incomeBandDef.max : min * 1.8;
+
+      const samples = {} as CategorySamples;
+      for (const category of BENCHMARK_CATEGORIES) samples[category] = [];
+
+      for (let i = 0; i < PROFILES_PER_BAND; i++) {
+        const income = min + rand() * (max - min);
+        for (const category of BENCHMARK_CATEGORIES) {
+          const mult = AGE_MULT[category]?.[ageBand] ?? 1;
+          const base = income * CATEGORY_PCT[category] * mult;
+          const noise = 0.7 + rand() * 0.6; // ±30% de variación entre perfiles
+          samples[category].push(base * noise);
+        }
+      }
+
+      for (const category of BENCHMARK_CATEGORIES) {
+        const sorted = samples[category].sort((a, b) => a - b);
+        rows.push({
+          ageBand,
+          incomeBand: incomeBandDef.id,
+          category,
+          p25: percentile(sorted, 0.25),
+          p50: percentile(sorted, 0.5),
+          p75: percentile(sorted, 0.75),
+          sampleSize: PROFILES_PER_BAND,
+        });
+      }
+    }
+  }
+
+  return rows;
+}
+
 async function main() {
   console.log("Limpiando tablas…");
   await db.delete(transactions);
   await db.delete(goals);
   await db.delete(products);
+  await db.delete(peerBenchmarks);
   await db.delete(users);
 
   console.log("Sembrando usuarios…");
+  const passwordHash = await Bun.password.hash(DEMO_PASSWORD);
   await db.insert(users).values([
     {
       id: "karla",
       name: "Karla Mendoza",
+      email: "karla@banorte.demo",
+      passwordHash,
       age: 28,
       occupation: "Diseñadora de producto",
       monthlyIncome: 28_400,
       balance: 43_820,
       uiMode: "estandar",
+      theme: "claro",
+      notificationsEnabled: true,
     },
     {
       id: "roberto",
       name: "Roberto Salas",
+      email: "roberto@banorte.demo",
+      passwordHash,
       age: 67,
       occupation: "Jubilado",
       monthlyIncome: 16_300,
       balance: 128_500,
       uiMode: "simple",
+      theme: "claro",
+      notificationsEnabled: true,
     },
   ]);
 
   console.log("Sembrando productos Banorte…");
   await db.insert(products).values(PRODUCTS);
 
-  const karlaRows = buildMonths("karla", KARLA_FIJOS, KARLA_VARIABLES, 6);
-  const robertoRows = buildMonths("roberto", ROBERTO_FIJOS, ROBERTO_VARIABLES, 6);
+  const karlaRows = buildMonths(rand, "karla", KARLA_FIJOS, KARLA_VARIABLES, 6);
+  const robertoRows = buildMonths(rand, "roberto", ROBERTO_FIJOS, ROBERTO_VARIABLES, 6);
 
   console.log(`Sembrando ${karlaRows.length + robertoRows.length} movimientos…`);
   for (let i = 0; i < karlaRows.length; i += 100) {
@@ -327,6 +325,10 @@ async function main() {
   for (let i = 0; i < robertoRows.length; i += 100) {
     await db.insert(transactions).values(robertoRows.slice(i, i + 100));
   }
+
+  console.log("Sembrando referencias de comparación (población sintética)…");
+  const benchmarkRows = buildPeerBenchmarks(rand);
+  await db.insert(peerBenchmarks).values(benchmarkRows);
 
   console.log("Sembrando metas…");
   await db.insert(goals).values([
@@ -342,6 +344,8 @@ async function main() {
   ]);
 
   console.log("Listo.");
+  console.log(`Login demo: karla@banorte.demo / ${DEMO_PASSWORD}`);
+  console.log(`Login demo: roberto@banorte.demo / ${DEMO_PASSWORD}`);
 }
 
 main().catch((err) => {

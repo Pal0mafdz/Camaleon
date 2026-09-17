@@ -1,10 +1,13 @@
 packages:
   - apps/*
   - packages/*
+allowBuilds:
+  esbuild: true
+  sharp: true
 catalog:
-  dotenv: ^17.4.2
-  zod: ^4.4.3
+  "@libsql/client": ^0.17.4
   "@types/bun": ^1.4.0
   ai: ^7.0.77
-  "@libsql/client": ^0.17.4
+  dotenv: ^17.4.2
   libsql: ^0.5.29
+  zod: ^4.4.3

@@ -4,7 +4,18 @@
  */
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "./index";
-import { conversations, goals, messages, plans, products, transactions, users } from "./schema";
+import { bandForAge, bandForIncome } from "./peer-bands";
+import {
+  conversations,
+  goals,
+  messages,
+  peerBenchmarks,
+  plans,
+  products,
+  sessions,
+  transactions,
+  users,
+} from "./schema";
 
 export type SpendingRow = { category: string; total: number; count: number };
 export type MerchantRow = { merchant: string; total: number; count: number };
@@ -16,6 +27,131 @@ export async function getUser(userId: string) {
 
 export async function listUsers() {
   return db.select().from(users);
+}
+
+export async function getUserByEmail(email: string) {
+  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return row ?? null;
+}
+
+export async function createUser(input: {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  age: number;
+  occupation: string;
+  monthlyIncome: number;
+  balance: number;
+}) {
+  const [row] = await db.insert(users).values(input).returning();
+  if (!row) throw new Error("No se pudo crear el usuario");
+  return row;
+}
+
+export async function createSession(input: { token: string; userId: string; expiresAt: Date }) {
+  const [row] = await db.insert(sessions).values(input).returning();
+  if (!row) throw new Error("No se pudo crear la sesión");
+  return row;
+}
+
+export async function getSessionByToken(token: string) {
+  const [row] = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+  if (!row || row.expiresAt.getTime() < Date.now()) return null;
+  return row;
+}
+
+export async function deleteSession(token: string) {
+  await db.delete(sessions).where(eq(sessions.token, token));
+}
+
+/** Cuántos movimientos tiene un usuario — usado por el backfill para saber a quién le falta poblarse. */
+export async function countTransactions(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(transactions)
+    .where(eq(transactions.userId, userId));
+  return row?.count ?? 0;
+}
+
+export async function updateUserProfile(
+  userId: string,
+  patch: { age: number; occupation: string; monthlyIncome: number; balance: number },
+) {
+  const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
+  return row ?? null;
+}
+
+export async function updateUserPreferences(
+  userId: string,
+  patch: {
+    uiMode?: string;
+    theme?: string;
+    notificationsEnabled?: boolean;
+  },
+) {
+  const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
+  return row ?? null;
+}
+
+/**
+ * Abona `amount` al saldo del usuario y deja un movimiento registrado.
+ * El incremento es atómico en SQL (`balance = balance + amount`), no leer-y-sumar.
+ */
+export async function depositToBalance(userId: string, amount: number, merchant = "Abono manual") {
+  const [user] = await db
+    .update(users)
+    .set({ balance: sql`${users.balance} + ${amount}` })
+    .where(eq(users.id, userId))
+    .returning();
+  if (!user) return null;
+
+  await db.insert(transactions).values({
+    userId,
+    date: new Date(),
+    merchant,
+    category: "abono",
+    amount,
+    method: "transferencia",
+  });
+
+  return user;
+}
+
+/**
+ * Transfiere `amount` del saldo del usuario al `currentAmount` de una de sus
+ * metas, en una sola transacción de BD. Devuelve `null` si la meta no existe,
+ * no es del usuario, o el saldo no alcanza — nunca deja saldo negativo.
+ */
+export async function fundGoal(userId: string, goalId: number, amount: number) {
+  return db.transaction(async (tx) => {
+    const [user] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || user.balance < amount) return null;
+
+    const [goal] = await tx
+      .update(goals)
+      .set({ currentAmount: sql`${goals.currentAmount} + ${amount}` })
+      .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
+      .returning();
+    if (!goal) return null;
+
+    const [updatedUser] = await tx
+      .update(users)
+      .set({ balance: sql`${users.balance} - ${amount}` })
+      .where(eq(users.id, userId))
+      .returning();
+
+    await tx.insert(transactions).values({
+      userId,
+      date: new Date(),
+      merchant: `Meta: ${goal.title}`,
+      category: "meta",
+      amount: -amount,
+      method: "transferencia",
+    });
+
+    return { goal, balance: updatedUser?.balance ?? user.balance - amount };
+  });
 }
 
 /** Saldo, ingreso mensual y quema promedio de los últimos 3 meses. */
@@ -30,7 +166,15 @@ export async function getBalance(userId: string) {
       ingresos: sql<number>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0)`,
     })
     .from(transactions)
-    .where(and(eq(transactions.userId, userId), gte(transactions.date, since)));
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        gte(transactions.date, since),
+        // Abonos y transferencias a metas mueven saldo entre bolsillos propios:
+        // no son ingreso ni gasto real, y contarlos infla ambos promedios.
+        sql`${transactions.category} not in ('abono', 'meta')`,
+      ),
+    );
 
   const gastoMensual = Math.round((agg?.gastos ?? 0) / 3);
   const ingresoMensual = Math.round((agg?.ingresos ?? 0) / 3);
@@ -43,6 +187,32 @@ export async function getBalance(userId: string) {
     monthlySpend: gastoMensual,
     monthlySurplus: (ingresoMensual || user.monthlyIncome) - gastoMensual,
   };
+}
+
+/** Gasto mensual promedio pagado con crédito: proxy de uso de deuda revolvente por usuario. */
+export async function getCreditUsage(userId: string, months = 3) {
+  const since = monthsAgo(months);
+  const [row] = await db
+    .select({
+      total: sql<number>`coalesce(sum(case when ${transactions.amount} < 0 then -${transactions.amount} else 0 end), 0)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        gte(transactions.date, since),
+        eq(transactions.method, "credito"),
+      ),
+    );
+
+  return Math.round((row?.total ?? 0) / months);
+}
+
+/** Inserta movimientos en lotes de 100 (mismo límite que usa `seed.ts`). */
+export async function insertTransactions(rows: (typeof transactions.$inferInsert)[]) {
+  for (let i = 0; i < rows.length; i += 100) {
+    await db.insert(transactions).values(rows.slice(i, i + 100));
+  }
 }
 
 export async function getTransactions(userId: string, limit = 40, category?: string) {
@@ -117,6 +287,60 @@ export async function analyzeSpending(userId: string, months = 3) {
     byCategory: byCategory.map((r) => ({ ...r, monthly: Math.round(r.total / months) })),
     topMerchants: byMerchant.map((r) => ({ ...r, monthly: Math.round(r.total / months) })),
     recurring,
+  };
+}
+
+export type PeerComparisonRow = {
+  category: string;
+  userMonthly: number;
+  peerP25: number;
+  peerP50: number;
+  peerP75: number;
+  comparison: "bajo" | "similar" | "alto";
+};
+
+/**
+ * Compara el gasto mensual real del cliente contra la población sintética
+ * (`peer_benchmarks`, generada en `seed.ts`) de gente con su misma banda de
+ * edad e ingreso. Es la mitad que le falta al asesor: no solo "gastaste X",
+ * sino "gastaste X comparado con miles de personas parecidas a ti".
+ */
+export async function compareToPeers(userId: string, months = 3) {
+  const user = await getUser(userId);
+  if (!user) return null;
+
+  const balance = await getBalance(userId);
+  const spending = await analyzeSpending(userId, months);
+
+  const ageBand = bandForAge(user.age);
+  const incomeBand = bandForIncome(balance?.monthlyIncome ?? user.monthlyIncome);
+
+  const benchmarks = await db
+    .select()
+    .from(peerBenchmarks)
+    .where(and(eq(peerBenchmarks.ageBand, ageBand), eq(peerBenchmarks.incomeBand, incomeBand)));
+
+  const byCategory: PeerComparisonRow[] = [];
+  for (const row of spending.byCategory) {
+    const bench = benchmarks.find((b) => b.category === row.category);
+    if (!bench) continue;
+    const comparison =
+      row.monthly < bench.p25 ? "bajo" : row.monthly > bench.p75 ? "alto" : "similar";
+    byCategory.push({
+      category: row.category,
+      userMonthly: row.monthly,
+      peerP25: bench.p25,
+      peerP50: bench.p50,
+      peerP75: bench.p75,
+      comparison,
+    });
+  }
+
+  return {
+    ageBand,
+    incomeBand,
+    sampleSize: benchmarks[0]?.sampleSize ?? 0,
+    byCategory,
   };
 }
 

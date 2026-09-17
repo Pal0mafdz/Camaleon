@@ -3,6 +3,8 @@ import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { createContext, type ReactNode, useContext } from "react";
 import { McpRail } from "../canvas/mcp-panel";
+import { MotionMain, springSoft, useMotionPrefs } from "../canvas/widgets/shell";
+import { BrandLogo } from "./brand-logo";
 import { TOKENS } from "./theme";
 
 /**
@@ -30,24 +32,28 @@ export function useLayoutMode(): LayoutMode {
   return useContext(LayoutContext);
 }
 
-const SURFACE_W = 428;
-const RAIL_W = 320;
+const SURFACE_W_MEDIUM = 480;
+/* En escritorio la hoja crece hasta dos columnas de widgets; nunca invade el riel. */
+const SURFACE_W_WIDE = "min(780px, calc(100vw - 440px))";
+const RAIL_W = 300;
 
 /**
- * El fondo del escritorio es la mesa sobre la que descansa el papel: campo de
- * tinta cálida con una luz difusa detrás de la superficie. La luz está
- * motivada —es lo que hace que la hoja brille— y no es un degradado genérico.
+ * El fondo del escritorio es la mesa sobre la que descansa la tarjeta: un
+ * campo granate → tinta (el reverso de la tarjeta Banorte) con una luz cálida
+ * detrás de la hoja. La luz está motivada —es lo que hace brillar el
+ * laminado— y no es un degradado genérico.
  */
 const TABLE = [
   `radial-gradient(80% 55% at 50% 0%, ${TOKENS.tintRed14} 0%, transparent 70%)`,
-  "radial-gradient(60% 50% at 50% 42%, rgba(154,112,90,0.30) 0%, transparent 72%)",
-  `linear-gradient(180deg, ${TOKENS.inkRaised} 0%, ${TOKENS.ink} 55%, #17110D 100%)`,
+  `radial-gradient(60% 50% at 50% 42%, ${TOKENS.tintGarnet30} 0%, transparent 72%)`,
+  `linear-gradient(180deg, ${TOKENS.garnet} 0%, ${TOKENS.inkRaised} 48%, ${TOKENS.inkDeep} 100%)`,
 ].join(", ");
 
 export function AppShell({ children }: { children: ReactNode }) {
   const isMedium = useMediaQuery("(min-width:640px)");
   const isWide = useMediaQuery("(min-width:1024px)");
   const mode: LayoutMode = isWide ? "wide" : isMedium ? "medium" : "compact";
+  const { t } = useMotionPrefs();
 
   if (mode === "compact") {
     return (
@@ -88,23 +94,30 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         {mode === "wide" && <BrandRail />}
 
-        <Box
-          component="main"
+        {/* La hoja es una tarjeta de 480px: se reparte sobre la mesa una sola
+            vez, con el mismo giro que las tarjetas del lienzo, y se apoya. */}
+        <MotionMain
+          initial={{ opacity: 0, y: 24, rotateZ: -1.2, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, rotateZ: 0, scale: 1 }}
+          transition={t(springSoft)}
           sx={{
             position: "relative",
             width: "100%",
-            maxWidth: SURFACE_W,
-            height: "min(920px, calc(100dvb - 64px))",
+            maxWidth: mode === "wide" ? SURFACE_W_WIDE : SURFACE_W_MEDIUM,
+            height: "min(940px, calc(100dvb - 64px))",
             flexShrink: 0,
             borderRadius: "var(--radius-xl)",
             overflow: "hidden",
+            transformOrigin: "50% 100%",
             bgcolor: "background.default",
-            boxShadow: `${TOKENS.glossLight}, ${TOKENS.elev3}`,
+            boxShadow: `${TOKENS.glossLight}, ${TOKENS.elev3}, ${TOKENS.elevSheet}`,
             "--dock-offset": "var(--tab-bar-h)",
+            "--gutter": mode === "wide" ? "24px" : "16px",
+            "--canvas-cols": "2",
           }}
         >
           {children}
-        </Box>
+        </MotionMain>
       </Box>
     </LayoutContext.Provider>
   );
@@ -115,11 +128,12 @@ function BrandRail() {
   return (
     <Box
       component="aside"
+      className="on-ink"
       sx={{
         width: RAIL_W,
         flexShrink: 0,
         alignSelf: "stretch",
-        maxHeight: "min(920px, calc(100dvb - 64px))",
+        maxHeight: "min(940px, calc(100dvb - 64px))",
         display: "flex",
         flexDirection: "column",
         gap: 4,
@@ -127,36 +141,16 @@ function BrandRail() {
       }}
     >
       <Box>
-        <Box
-          sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 1,
-            px: 1.5,
-            py: 0.5,
-            mb: 2.5,
-            borderRadius: "var(--radius-pill)",
-            backgroundColor: TOKENS.tintWhite8,
-            boxShadow: `inset 0 0 0 1px ${TOKENS.tintWhite14}`,
-          }}
-        >
-          <Box
-            sx={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: TOKENS.red }}
-            aria-hidden
-          />
-          <Typography variant="overline" sx={{ color: TOKENS.onDarkDim }}>
-            Banorte
-          </Typography>
-        </Box>
-
-        <Typography variant="h2" sx={{ color: TOKENS.onDark, fontSize: 40 }}>
+        {/* Marca primero cuando existe el activo oficial; el título carga solo. */}
+        <BrandLogo height={28} sx={{ mb: 2 }} />
+        <Typography variant="h1" component="h1" sx={{ color: TOKENS.onDark }}>
           Camaleón
         </Typography>
         <Typography
           variant="body1"
           sx={{ color: TOKENS.onDarkDim, mt: 1.5, maxWidth: "28ch", overflowWrap: "anywhere" }}
         >
-          Un asesor que no te da pantallas: te arma la que necesitas, con tu dinero real.
+          El asesor de Banorte que no te da pantallas: te arma la que necesitas, con tu dinero real.
         </Typography>
       </Box>
 

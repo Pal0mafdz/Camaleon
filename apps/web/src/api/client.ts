@@ -1,5 +1,6 @@
 import { env } from "@camaleon/env/web";
 import type { Widget } from "@camaleon/shared";
+import { type AuthUser, useAuth } from "../auth/store";
 
 /**
  * Cliente REST de la capa persistente (metas, planes, historial).
@@ -32,6 +33,17 @@ export type NewGoal = {
 };
 
 /** Snapshot de un lienzo guardado por el agente. Se puede volver a pintar. */
+export type Balance = {
+  userId: string;
+  name: string;
+  balance: number;
+  monthlyIncome: number;
+  monthlySpend: number;
+  monthlySurplus: number;
+};
+
+export type FundGoalResult = { goal: Goal; balance: number };
+
 export type Plan = {
   id: number;
   userId: string;
@@ -64,13 +76,19 @@ export type Conversation = ConversationSummary & { messages: ConversationTurn[] 
  * las pantallas lo pintan tal cual, sin traducir códigos.
  */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = useAuth.getState().token;
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("authorization", `Bearer ${token}`);
+
   let res: Response;
   try {
-    res = await fetch(`${env.VITE_SERVER_URL}${path}`, init);
+    res = await fetch(`${env.VITE_SERVER_URL}${path}`, { ...init, headers });
   } catch {
     throw new Error("No pude contactar al servidor");
   }
+  if (res.status === 401) useAuth.getState().logout();
   if (!res.ok) throw new Error(`El servidor respondió ${res.status}`);
+  if (res.status === 204) return undefined as T;
   // Frontera de confianza: del otro lado está nuestro propio servidor tipado.
   return (await res.json()) as T;
 }
@@ -81,6 +99,35 @@ function body(method: "POST" | "PATCH", payload: unknown): RequestInit {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   };
+}
+
+export type AuthResponse = { token: string; user: AuthUser };
+
+export function login(email: string, password: string): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/login", body("POST", { email, password }));
+}
+
+export function signup(input: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/signup", body("POST", input));
+}
+
+export function logout(): Promise<void> {
+  return request<void>("/auth/logout", { method: "POST" });
+}
+
+export function getPreferences(userId: string): Promise<AuthUser> {
+  return request<AuthUser>(`/preferences/${userId}`);
+}
+
+export function patchPreferences(
+  userId: string,
+  patch: Partial<Pick<AuthUser, "uiMode" | "theme" | "notificationsEnabled">>,
+): Promise<AuthUser> {
+  return request<AuthUser>(`/preferences/${userId}`, body("PATCH", patch));
 }
 
 export function listGoals(userId: string): Promise<Goal[]> {
@@ -96,6 +143,18 @@ export function patchGoal(
   patch: { userId: string; status: GoalStatus },
 ): Promise<Goal> {
   return request<Goal>(`/goals/${id}`, body("PATCH", patch));
+}
+
+export function getAccountBalance(userId: string): Promise<Balance> {
+  return request<Balance>(`/account/${userId}`);
+}
+
+export function depositToAccount(amount: number): Promise<{ balance: number }> {
+  return request<{ balance: number }>("/account/deposit", body("POST", { amount }));
+}
+
+export function fundGoal(goalId: number, amount: number): Promise<FundGoalResult> {
+  return request<FundGoalResult>(`/goals/${goalId}/fund`, body("POST", { amount }));
 }
 
 export function listPlans(userId: string): Promise<Plan[]> {

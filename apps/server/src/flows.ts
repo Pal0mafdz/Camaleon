@@ -483,9 +483,27 @@ export async function viajeMapa(userId: string): Promise<DemoScript> {
         props: {
           title: "Japón clásico · 12 días",
           stops: [
-            { n: 1, label: "Tokio", sublabel: "5 días" },
-            { n: 2, label: "Kioto", sublabel: "4 días" },
-            { n: 3, label: "Osaka", sublabel: "3 días" },
+            {
+              n: 1,
+              label: "Tokio",
+              sublabel: "5 días · Shibuya, Asakusa y Akihabara",
+              lat: 35.6762,
+              lng: 139.6503,
+            },
+            {
+              n: 2,
+              label: "Kioto",
+              sublabel: "4 días · Templos y el bosque de bambú de Arashiyama",
+              lat: 35.0116,
+              lng: 135.7681,
+            },
+            {
+              n: 3,
+              label: "Osaka",
+              sublabel: "3 días · Castillo de Osaka y Dotonbori de noche",
+              lat: 34.6937,
+              lng: 135.5023,
+            },
           ],
           card: {
             kicker: "Día 1 · Tokio",

@@ -20,9 +20,10 @@ import {
 /**
  * "Cuánto puedo gastar hoy sin romper nada."
  *
- * Colapsado ya trae su barra de avance del día: un número solo en una tarjeta
- * de 100px se lee como un hueco, y el dato de cuánto llevas gastado ya está en
- * las props — esconderlo detrás del toque era desperdiciar la mitad del alto.
+ * Cifra protagonista: lo disponible (rueda). Dato de apoyo: la barra de lo
+ * que ya llevas gastado, que crece desde cero un paso después. Acción: la
+ * pregunta al agente en el detalle. Cerrado ya cuenta la historia completa;
+ * el detalle solo explica de dónde sale el número.
  */
 export function DailyWidget({
   props,
@@ -32,22 +33,24 @@ export function DailyWidget({
   onAsk?: (q: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useMotionPrefs();
+  const { t, step } = useMotionPrefs();
   const formula = props.formula ?? [];
   // El índice solo vive aquí, fuera del JSX: los días repiten etiqueta.
   const days = (props.days ?? []).map((d, i) => ({ ...d, key: `day-${i}` }));
   const usedPct = Math.min((props.spent / Math.max(props.available, 1)) * 100, 100);
-  const over = usedPct >= 100;
+  const over = props.spent > props.available;
+  const left = Math.max(props.available - props.spent, 0);
 
   return (
     <WidgetShell>
-      <TapHeader expanded={open} onToggle={() => setOpen((v) => !v)}>
+      <TapHeader expanded={open} onToggle={() => setOpen((v) => !v)} hint>
         <Label>{props.title}</Label>
         <RollingNumber
           value={props.available}
           format={(n) => formatMoney(n)}
           variant="h3"
-          sx={{ color: "text.primary", mt: 0.5 }}
+          delay={step(1)}
+          sx={{ color: "text.primary", mt: 0.5, minWidth: 0, overflowWrap: "anywhere" }}
         />
         {props.caption && (
           <Typography
@@ -59,16 +62,49 @@ export function DailyWidget({
         )}
 
         <Box sx={{ mt: 1.75 }}>
-          <Meter pct={usedPct} color={over ? TOKENS.bad : TOKENS.red} height={8} delay={0.12} />
-          <Typography variant="caption" sx={{ color: "text.secondary", mt: 1, display: "block" }}>
-            Hoy llevas{" "}
-            <Box
-              component="span"
-              sx={{ color: over ? TOKENS.badInk : "text.primary", fontWeight: 700 }}
+          <Meter pct={usedPct} color={over ? TOKENS.bad : TOKENS.red} height={8} delay={step(2)} />
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              columnGap: 1.5,
+              rowGap: 0.5,
+              mt: 1,
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 0 }}>
+              {props.spent > 0 ? (
+                <>
+                  Hoy llevas{" "}
+                  <Box
+                    component="span"
+                    sx={{
+                      color: over ? TOKENS.badInk : "text.primary",
+                      fontWeight: 700,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {formatMoney(props.spent)}
+                  </Box>
+                </>
+              ) : (
+                "Hoy no has gastado nada"
+              )}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: over ? TOKENS.badInk : TOKENS.goodInk,
+                fontVariantNumeric: "tabular-nums",
+                flexShrink: 0,
+              }}
             >
-              {formatMoney(props.spent)}
-            </Box>
-          </Typography>
+              {over
+                ? `Te pasaste ${formatMoney(props.spent - props.available)}`
+                : `Te quedan ${formatMoney(left)}`}
+            </Typography>
+          </Box>
         </Box>
       </TapHeader>
 
@@ -80,7 +116,7 @@ export function DailyWidget({
               sx={{
                 borderRadius: "var(--radius-m)",
                 p: 1.75,
-                backgroundColor: TOKENS.tintInk3,
+                backgroundColor: TOKENS.sunken,
               }}
             >
               <SectionLabel>De dónde sale</SectionLabel>
@@ -97,16 +133,20 @@ export function DailyWidget({
             </MotionBox>
           )}
 
-          {props.breakdown.length > 0 && (
-            <MotionBox variants={staggerItem} sx={{ mt: 2.5 }}>
-              <SectionLabel>En qué se fue</SectionLabel>
+          <MotionBox variants={staggerItem} sx={{ mt: formula.length > 0 ? 2.5 : 0 }}>
+            <SectionLabel>En qué se fue</SectionLabel>
+            {props.breakdown.length > 0 ? (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
                 {props.breakdown.map((b) => (
                   <AmountRow key={b.label} label={b.label} amount={formatMoney(b.amount)} />
                 ))}
               </Box>
-            </MotionBox>
-          )}
+            ) : (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                Todavía ningún cargo hoy.
+              </Typography>
+            )}
+          </MotionBox>
 
           {days.length > 0 && (
             <MotionBox variants={staggerItem} sx={{ mt: 2.5 }}>
@@ -117,14 +157,13 @@ export function DailyWidget({
                     key={d.key}
                     title={d.label}
                     initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    animate={{ opacity: d.over ? 1 : 0.28, scale: 1 }}
                     transition={t({ ...springSoft, delay: 0.012 * i })}
                     sx={{
                       width: 10,
                       height: 10,
-                      borderRadius: "4px",
+                      borderRadius: "var(--radius-2xs)",
                       backgroundColor: d.over ? TOKENS.red : TOKENS.good,
-                      opacity: d.over ? 1 : 0.28,
                     }}
                   />
                 ))}
@@ -160,7 +199,7 @@ function LegendDot({ color, label, faded }: { color: string; label: string; fade
         sx={{
           width: 8,
           height: 8,
-          borderRadius: "3px",
+          borderRadius: "var(--radius-2xs)",
           backgroundColor: color,
           opacity: faded ? 0.28 : 1,
         }}

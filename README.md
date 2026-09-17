@@ -32,6 +32,30 @@ Run the generated apps in separate terminals so each ecosystem keeps its native 
 pnpm dev:web
 ```
 
+### Base de datos compartida (Docker)
+
+Para que todo el equipo arranque con exactamente los mismos datos (Karla,
+Roberto, catálogo de productos, población sintética de peers — ver
+`packages/db/src/seed.ts`) sin instalar bun/pnpm/sqlite, hay una imagen que
+siembra la base y la sirve con `sqld`:
+
+```sh
+pnpm db:docker:up
+```
+
+Luego, en `apps/server/.env`:
+
+```
+DATABASE_URL=http://localhost:8080
+```
+
+- `pnpm db:docker:down` — apaga el contenedor (los datos quedan en el volumen de Docker).
+- `pnpm db:docker:reset` — borra el volumen y reconstruye la imagen, para volver a los datos originales de fábrica.
+
+Si prefieres una sqlite local propia en vez de la compartida, deja
+`DATABASE_URL=file:../../packages/db/local.db` y corre
+`pnpm db:push && pnpm -F @camaleon/db db:seed` una vez.
+
 ## Root Scripts
 
 - `dev` starts the primary generated workspace for graph projects.

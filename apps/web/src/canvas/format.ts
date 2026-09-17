@@ -113,20 +113,51 @@ export function heroGradient(query: string): string {
  * Fotos curadas por intención. Un buscador aleatorio devolvía gatos cuando
  * pedíamos un Mazda; en un pitch eso mata la credibilidad. Estas son fijas,
  * relevantes y cargan directo del CDN de Unsplash (sin API key).
+ *
+ * El agente a veces escribe `imageQuery` en inglés y a veces en español
+ * (depende del schema que lo generó), así que cada categoría reconoce
+ * palabras clave en ambos idiomas. Cuando una categoría tiene varias fotos,
+ * se elige una determinísticamente por `hash(query)` para que pedir "Mazda"
+ * y pedir "Tokio" no terminen mostrando la misma imagen genérica.
  */
-const HERO_PHOTOS: { match: RegExp; id: string }[] = [
+const HERO_PHOTOS: { match: RegExp; ids: string[] }[] = [
   // Manos al volante: sin logo de otra marca compitiendo con el título.
   {
-    match: /auto|carro|coche|mazda|nissan|toyota|honda|vehic|camioneta/,
-    id: "photo-1449965408869-eaa3f722e40d",
+    match:
+      /auto|carro|coche|mazda|nissan|toyota|honda|vehic|camioneta|car|sedan|suv|drive|dashboard/,
+    ids: [
+      "photo-1449965408869-eaa3f722e40d",
+      "photo-1552519507-da3b142c6e3d",
+      "photo-1503376780353-7e6692767b70",
+      "photo-1502877338535-766e1452684a",
+    ],
   },
   {
-    match: /casa|depa|departamento|hipotec|inmueble|enganche de casa/,
-    id: "photo-1560518883-ce09059eeffa",
+    match:
+      /casa|depa|departamento|hipotec|inmueble|enganche de casa|house|home|mortgage|property|real estate/,
+    ids: [
+      "photo-1560518883-ce09059eeffa",
+      "photo-1568605114967-8130f3a36994",
+      "photo-1512917774080-9991f1c4c750",
+    ],
   },
-  { match: /viaj|japon|tokio|europa|vacac|vuelo|avion/, id: "photo-1540959733332-eab4deabeeaf" },
-  { match: /invers|cetes|pagare|fondo|bolsa|rendimiento/, id: "photo-1611974789855-9c2a0a7236a3" },
-  { match: /ahorr|meta|apartado|fondo de emergencia|dinero/, id: "photo-1554224155-6726b3ff858f" },
+  {
+    match:
+      /viaj|japon|tokio|europa|vacac|vuelo|avion|trip|travel|vacation|flight|tokyo|japan|europe/,
+    ids: [
+      "photo-1540959733332-eab4deabeeaf",
+      "photo-1488646953014-85cb44e25828",
+      "photo-1476514525535-07fb3b4ae5f1",
+    ],
+  },
+  {
+    match: /invers|cetes|pagare|fondo|bolsa|rendimiento|invest|stock|portfolio|yield/,
+    ids: ["photo-1611974789855-9c2a0a7236a3"],
+  },
+  {
+    match: /ahorr|meta|apartado|fondo de emergencia|dinero|saving|goal|emergency fund|money/,
+    ids: ["photo-1554224155-6726b3ff858f"],
+  },
 ];
 
 const HERO_FALLBACK = "photo-1518105779142-d975f22f1b0a";
@@ -138,5 +169,6 @@ export function imageUrl(query: string, w = 800, h = 600): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
   const hit = HERO_PHOTOS.find((p) => p.match.test(q));
-  return `https://images.unsplash.com/${hit?.id ?? HERO_FALLBACK}?w=${w}&h=${h}&fit=crop&q=70`;
+  const id = hit ? hit.ids[hash(q) % hit.ids.length] : HERO_FALLBACK;
+  return `https://images.unsplash.com/${id}?w=${w}&h=${h}&fit=crop&q=70`;
 }

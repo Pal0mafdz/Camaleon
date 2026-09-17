@@ -2,21 +2,23 @@ import type { WidgetProps } from "@camaleon/shared";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { useEffect, useState } from "react";
-import { TOKENS } from "../../app/theme";
+import { EASE_OUT, TOKENS } from "../../app/theme";
 import { heroGradient, imageUrl } from "../format";
-import { MotionBox, spring, useMotionPrefs } from "./shell";
+import { MotionBox, spring, useMotionPrefs, WidgetShell } from "./shell";
 
 /**
  * Portada del lienzo: imagen a sangre + palabra gigante recortada por abajo.
- * Es el widget que hace que el jurado diga "wow" en el primer segundo.
+ *
+ * Entra con la misma coreografía que el resto (`WidgetShell variant="bare"`)
+ * y dentro hace su propio número: la foto se revela cuando carga y la palabra
+ * sube desde el borde inferior un paso después. Sin red, el gradiente cálido
+ * de la marca es el piso y el hero sigue viéndose intencional.
  */
 export function HeroWidget({ props }: { props: WidgetProps["hero"] }) {
-  const { t } = useMotionPrefs();
+  const { t, step } = useMotionPrefs();
   const gradient = heroGradient(props.imageQuery);
   const [photo, setPhoto] = useState<string | null>(null);
 
-  // La foto es un lujo, no un requisito: si no carga (sin wifi, host caído)
-  // el gradiente se queda y el hero sigue viéndose intencional.
   useEffect(() => {
     let alive = true;
     const url = imageUrl(props.imageQuery);
@@ -32,24 +34,21 @@ export function HeroWidget({ props }: { props: WidgetProps["hero"] }) {
   }, [props.imageQuery]);
 
   return (
-    <MotionBox
-      layout
-      initial={{ opacity: 0, scale: 1.06, filter: "blur(12px)" }}
-      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      exit={{ opacity: 0, filter: "blur(8px)" }}
-      transition={{ ...spring, stiffness: 260 }}
+    <WidgetShell
+      variant="bare"
+      pad={0}
       sx={{
-        position: "relative",
         height: 200,
         borderRadius: "var(--radius-l)",
         overflow: "hidden",
         backgroundImage: gradient,
+        boxShadow: TOKENS.elev2,
       }}
     >
       <MotionBox
-        initial={{ opacity: 0 }}
-        animate={{ opacity: photo ? 1 : 0 }}
-        transition={{ duration: 0.5 }}
+        initial={{ opacity: 0, scale: 1.06 }}
+        animate={{ opacity: photo ? 1 : 0, scale: photo ? 1 : 1.06 }}
+        transition={t({ duration: 0.6, ease: EASE_OUT })}
         sx={{
           position: "absolute",
           inset: 0,
@@ -59,39 +58,41 @@ export function HeroWidget({ props }: { props: WidgetProps["hero"] }) {
         }}
       />
 
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          background: TOKENS.scrimMedia,
-        }}
-        aria-hidden
-      />
+      <Box sx={{ position: "absolute", inset: 0, background: TOKENS.scrimMedia }} aria-hidden />
 
       <MotionBox
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, ...spring }}
+        transition={t({ ...spring, delay: step(3) })}
         className="liquid-glass"
         sx={{
           position: "absolute",
           top: 12,
           left: 12,
+          maxWidth: "calc(100% - 24px)",
           px: 1.5,
           py: 0.5,
-          borderRadius: 999,
+          borderRadius: "var(--radius-pill)",
         }}
       >
-        {/* La pastilla sigue siendo vidrio claro sobre la foto, pero `.liquid-glass`
-            ahora es blanco al 86%: el texto tuvo que pasar a tinta o se perdía.
-            El resto del hero (velo oscuro y palabra gigante) se queda en blanco:
-            va sobre la fotografía, no sobre el lienzo claro. */}
-        <Typography variant="caption" sx={{ color: "text.primary", fontWeight: 600 }}>
+        {/* La pastilla es papel sobre la foto: el texto va en tinta. El resto
+            del hero (velo y palabra gigante) va en blanco sobre la fotografía. */}
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            color: "text.primary",
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
           {props.pill}
         </Typography>
       </MotionBox>
 
-      {/* Palabra gigante recortada por abajo, como la referencia. */}
+      {/* Palabra gigante recortada por abajo. */}
       <Box
         sx={{
           position: "absolute",
@@ -105,16 +106,22 @@ export function HeroWidget({ props }: { props: WidgetProps["hero"] }) {
         <MotionBox
           initial={{ y: 60, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={t({ delay: 0.2, type: "spring", stiffness: 180, damping: 22 })}
+          transition={t({ type: "spring", stiffness: 180, damping: 22, delay: step(4) })}
         >
           <Typography
             className="clip-display"
-            sx={{ display: "block", color: TOKENS.onDarkDim, transform: "translateY(8px)" }}
+            sx={{
+              display: "block",
+              color: TOKENS.onDarkDim,
+              transform: "translateY(8px)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
           >
             {props.title}
           </Typography>
         </MotionBox>
       </Box>
-    </MotionBox>
+    </WidgetShell>
   );
 }
